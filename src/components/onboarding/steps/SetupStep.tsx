@@ -5,20 +5,20 @@ import { useOnboarding } from "@/lib/onboarding/OnboardingProvider";
 
 /**
  * Placeholder step proving the onboarding framework end-to-end. Real
- * onboarding content (questionnaire, splash, etc.) replaces this later.
+ * onboarding content (questionnaire, etc.) replaces this later.
  */
-export default function WelcomeStep() {
+export default function SetupStep() {
   const onboarding = useOnboarding();
 
   return (
     <OnboardingScreen
-      step="welcome"
-      title="Welcome"
+      step="setup"
+      title="Setup"
       primaryActionLabel="Continue"
       primaryActionDisabled={onboarding.status !== "ready"}
       onPrimaryAction={() => {
         if (onboarding.status === "ready") {
-          void onboarding.completeStep("welcome");
+          void onboarding.completeStep("setup");
         }
       }}
     >

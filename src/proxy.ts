@@ -14,7 +14,7 @@ export function proxy(request: NextRequest) {
     request.cookies.get(ONBOARDING_COMPLETE_COOKIE)?.value === "1";
 
   if (!hasCompletedOnboarding) {
-    return NextResponse.redirect(new URL("/onboarding", request.url));
+    return NextResponse.redirect(new URL("/welcome", request.url));
   }
 
   return NextResponse.next();
@@ -22,6 +22,6 @@ export function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!onboarding|api|_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt).*)",
+    "/((?!welcome|onboarding|api|_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt).*)",
   ],
 };

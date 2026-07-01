@@ -430,3 +430,59 @@ select,
 .vt-mint {
   color: var(--color-mint);
 }
+
+/* ----- welcome screen: gem mark + entrance animation ----- */
+.vt-gem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.vt-gem-svg {
+  filter: drop-shadow(0 0 24px var(--color-mint-glow))
+    drop-shadow(0 0 48px var(--color-mint-glow));
+  animation: vtGemFloat 6s var(--ease-DEFAULT) infinite;
+  transform-origin: 50% 50%;
+}
+
+.vt-gem-chevron {
+  opacity: 0.85;
+}
+
+@keyframes vtGemFloat {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-2deg);
+  }
+  50% {
+    transform: translateY(-8px) rotate(2deg);
+  }
+}
+
+.vt-rise-in {
+  animation: vtRiseIn var(--duration-lift) var(--ease-premium) both;
+}
+
+@keyframes vtRiseIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vt-gem-svg {
+    animation: none;
+  }
+
+  .vt-rise-in {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}

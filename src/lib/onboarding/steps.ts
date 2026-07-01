@@ -1,5 +1,5 @@
 import type { ComponentType } from "react";
-import WelcomeStep from "@/components/onboarding/steps/WelcomeStep";
+import SetupStep from "@/components/onboarding/steps/SetupStep";
 
 /**
  * Single source of truth for onboarding screen order. To add a screen:
@@ -7,12 +7,12 @@ import WelcomeStep from "@/components/onboarding/steps/WelcomeStep";
  * 2. Add its component to STEP_COMPONENTS below.
  * No routing or persistence code needs to change.
  */
-export const ONBOARDING_STEPS = ["welcome"] as const;
+export const ONBOARDING_STEPS = ["setup"] as const;
 
 export type OnboardingStepId = (typeof ONBOARDING_STEPS)[number];
 
 export const STEP_COMPONENTS: Record<OnboardingStepId, ComponentType> = {
-  welcome: WelcomeStep,
+  setup: SetupStep,
 };
 
 export function isOnboardingStepId(value: string): value is OnboardingStepId {

@@ -100,6 +100,36 @@ export async function completeOnboarding(): Promise<OnboardingState> {
   return rowToState(data);
 }
 
+/**
+ * Appends a step id to completed_steps without touching current_step. Used by
+ * hub-style setup sub-screens (e.g. 'macros') that return to /onboarding/setup
+ * instead of advancing the linear flow. Idempotent.
+ */
+export async function markStepComplete(step: string): Promise<void> {
+  const userId = await ensureAnonymousSession();
+
+  const { data, error } = await supabase
+    .from("user_onboarding")
+    .select("completed_steps")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) throw error;
+
+  const current = (data?.completed_steps ?? []) as string[];
+  if (current.includes(step)) return;
+
+  const { error: updateError } = await supabase
+    .from("user_onboarding")
+    .update({
+      completed_steps: [...current, step],
+      updated_at: new Date().toISOString(),
+    })
+    .eq("user_id", userId);
+
+  if (updateError) throw updateError;
+}
+
 /** Explicit user-triggered reset — the only way onboarding is shown again. */
 export async function resetOnboarding(): Promise<OnboardingState> {
   const userId = await ensureAnonymousSession();

@@ -99,3 +99,26 @@ export async function saveTrainingAnswer(
 
   if (error) throw error;
 }
+
+export interface BodyStats {
+  heightCm: number | null;
+  weightKg: number | null;
+}
+
+/** Loads the user's height/weight so callers can tell if the basics are set. */
+export async function fetchBodyStats(): Promise<BodyStats> {
+  const userId = await ensureAnonymousSession();
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("height_cm, weight_kg")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) throw error;
+
+  return {
+    heightCm: data?.height_cm ?? null,
+    weightKg: data?.weight_kg ?? null,
+  };
+}

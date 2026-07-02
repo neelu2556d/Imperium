@@ -122,3 +122,46 @@ export async function fetchBodyStats(): Promise<BodyStats> {
     weightKg: data?.weight_kg ?? null,
   };
 }
+
+export interface MentorSetup {
+  tone: string | null;
+  focus: string[];
+}
+
+/** Loads any saved mentor personality settings, for prefill on return. */
+export async function fetchMentorSetup(): Promise<MentorSetup> {
+  const userId = await ensureAnonymousSession();
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("mentor_tone, mentor_focus")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) throw error;
+
+  return {
+    tone: data?.mentor_tone ?? null,
+    focus: (data?.mentor_focus ?? []) as string[],
+  };
+}
+
+/** Upserts the user's mentor tone + focus areas onto their profile row. */
+export async function saveMentorSetup(
+  tone: string,
+  focus: string[]
+): Promise<void> {
+  const userId = await ensureAnonymousSession();
+
+  const { error } = await supabase.from("profiles").upsert(
+    {
+      user_id: userId,
+      mentor_tone: tone,
+      mentor_focus: focus,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "user_id" }
+  );
+
+  if (error) throw error;
+}

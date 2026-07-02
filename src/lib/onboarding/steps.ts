@@ -1,4 +1,5 @@
 import type { ComponentType } from "react";
+import AboutStep from "@/components/onboarding/steps/AboutStep";
 import SetupStep from "@/components/onboarding/steps/SetupStep";
 
 /**
@@ -7,11 +8,12 @@ import SetupStep from "@/components/onboarding/steps/SetupStep";
  * 2. Add its component to STEP_COMPONENTS below.
  * No routing or persistence code needs to change.
  */
-export const ONBOARDING_STEPS = ["setup"] as const;
+export const ONBOARDING_STEPS = ["about", "setup"] as const;
 
 export type OnboardingStepId = (typeof ONBOARDING_STEPS)[number];
 
 export const STEP_COMPONENTS: Record<OnboardingStepId, ComponentType> = {
+  about: AboutStep,
   setup: SetupStep,
 };
 

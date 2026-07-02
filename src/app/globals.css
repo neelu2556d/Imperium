@@ -486,3 +486,28 @@ select,
     transform: none;
   }
 }
+
+/* ----- empty-field nudge: mint border pulse when a required field is skipped ----- */
+.vt-field-pulse {
+  animation: vtFieldPulse 0.9s var(--ease-DEFAULT) 2;
+  border-color: var(--color-mint) !important;
+}
+
+@keyframes vtFieldPulse {
+  0%,
+  100% {
+    border-color: var(--color-border);
+    box-shadow: 0 0 0 0 rgba(110, 231, 183, 0);
+  }
+  50% {
+    border-color: var(--color-mint);
+    box-shadow: 0 0 0 3px var(--color-mint-glow);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vt-field-pulse {
+    animation: none;
+    box-shadow: 0 0 0 3px var(--color-mint-glow);
+  }
+}

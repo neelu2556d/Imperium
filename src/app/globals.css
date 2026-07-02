@@ -511,3 +511,121 @@ select,
     box-shadow: 0 0 0 3px var(--color-mint-glow);
   }
 }
+
+/* ----- training wizard: 300ms slide transitions between steps ----- */
+.vt-anim-in-fwd {
+  animation: vtSlideInFwd 300ms var(--ease-premium) both;
+}
+.vt-anim-out-fwd {
+  animation: vtSlideOutFwd 300ms var(--ease-premium) both;
+}
+.vt-anim-in-back {
+  animation: vtSlideInBack 300ms var(--ease-premium) both;
+}
+.vt-anim-out-back {
+  animation: vtSlideOutBack 300ms var(--ease-premium) both;
+}
+
+@keyframes vtSlideInFwd {
+  from {
+    opacity: 0.3;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+@keyframes vtSlideOutFwd {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-100%);
+  }
+}
+@keyframes vtSlideInBack {
+  from {
+    opacity: 0.3;
+    transform: translateX(-100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+@keyframes vtSlideOutBack {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vt-anim-in-fwd,
+  .vt-anim-in-back {
+    animation: none;
+  }
+  /* skip the crossfade entirely so two steps never overlap */
+  .vt-anim-out-fwd,
+  .vt-anim-out-back {
+    display: none;
+  }
+}
+
+/* ----- training wizard: large mint range slider (steps 9 & 10) ----- */
+.vt-range {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: linear-gradient(
+    to right,
+    var(--color-mint) 0%,
+    var(--color-mint) var(--vt-range-fill, 0%),
+    var(--color-border-strong) var(--vt-range-fill, 0%),
+    var(--color-border-strong) 100%
+  );
+  outline: none;
+  cursor: pointer;
+}
+.vt-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 28px;
+  height: 28px;
+  margin-top: -11px;
+  border-radius: 50%;
+  background: var(--color-mint);
+  border: 3px solid var(--color-bg);
+  box-shadow: 0 0 0 1px var(--color-mint), 0 0 16px var(--color-mint-glow);
+  cursor: pointer;
+}
+.vt-range::-moz-range-track {
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--color-border-strong);
+}
+.vt-range::-moz-range-progress {
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--color-mint);
+}
+.vt-range::-moz-range-thumb {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--color-mint);
+  border: 3px solid var(--color-bg);
+  box-shadow: 0 0 0 1px var(--color-mint), 0 0 16px var(--color-mint-glow);
+  cursor: pointer;
+}
+.vt-range:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 1px var(--color-mint), 0 0 0 5px var(--color-mint-glow);
+}

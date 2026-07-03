@@ -629,3 +629,27 @@ select,
 .vt-range:focus-visible::-webkit-slider-thumb {
   box-shadow: 0 0 0 1px var(--color-mint), 0 0 0 5px var(--color-mint-glow);
 }
+
+/* ----- /onboarding/split: mint glow when a split card is selected ----- */
+.split-card-selected {
+  animation: splitGlow 480ms var(--ease-premium) both;
+  box-shadow: 0 0 0 3px var(--color-mint-glow);
+}
+
+@keyframes splitGlow {
+  0% {
+    box-shadow: 0 0 0 0 rgba(110, 231, 183, 0);
+  }
+  60% {
+    box-shadow: 0 0 0 5px var(--color-mint-glow);
+  }
+  100% {
+    box-shadow: 0 0 0 3px var(--color-mint-glow);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .split-card-selected {
+    animation: none;
+  }
+}

@@ -653,3 +653,54 @@ select,
     animation: none;
   }
 }
+
+/* ----- /home: bento cards (tactile press + mint focus glow) ----- */
+.home-card {
+  cursor: pointer;
+  overflow: hidden;
+  outline: none;
+  transition: transform var(--duration-fast) var(--ease-out-soft),
+    box-shadow var(--duration-DEFAULT) var(--ease-DEFAULT);
+}
+
+.home-card:hover,
+.home-card:focus-visible {
+  box-shadow: var(--shadow-glass), 0 0 0 1px rgba(110, 231, 183, 0.2);
+}
+
+.home-card:active {
+  transform: scale(0.97);
+}
+
+/* ----- /home: skeleton shimmer while a card's data loads ----- */
+.home-skeleton {
+  background: linear-gradient(
+    100deg,
+    rgba(110, 231, 183, 0.04) 20%,
+    rgba(110, 231, 183, 0.14) 50%,
+    rgba(110, 231, 183, 0.04) 80%
+  );
+  background-size: 200% 100%;
+  animation: homeShimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes homeShimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-card {
+    transition: box-shadow var(--duration-DEFAULT) var(--ease-DEFAULT);
+  }
+  .home-card:active {
+    transform: none;
+  }
+  .home-skeleton {
+    animation: none;
+  }
+}

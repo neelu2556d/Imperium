@@ -23,7 +23,7 @@ export default function WelcomeScreen() {
       .then(([onboarding, firstName]) => {
         if (cancelled) return;
         if (onboarding.isComplete) {
-          router.replace("/train");
+          router.replace("/home");
           return;
         }
         setLoadState({ status: "ready", firstName });

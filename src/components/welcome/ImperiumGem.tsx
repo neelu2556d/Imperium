@@ -3,16 +3,36 @@ import type { CSSProperties } from "react";
 interface ImperiumGemProps {
   className?: string;
   style?: CSSProperties;
+  /** Width of the gem in px. Height follows the 120:150 aspect ratio. Default 140. */
+  size?: number;
+  /** Whether to render the down-chevron beneath the gem. Default true. */
+  showChevron?: boolean;
 }
 
 /**
- * Faceted mint gem mark for the welcome screen. Pure SVG so it stays crisp
- * at any size and can be recolored entirely through theme tokens.
+ * Faceted mint gem mark. Pure SVG so it stays crisp at any size and can be
+ * recolored entirely through theme tokens. `size` scales the gem (keeping its
+ * aspect ratio); `showChevron` toggles the down-chevron used on the welcome
+ * screen — the /home dashboard renders the gem on its own.
  */
-export default function ImperiumGem({ className = "", style }: ImperiumGemProps) {
+export default function ImperiumGem({
+  className = "",
+  style,
+  size = 140,
+  showChevron = true,
+}: ImperiumGemProps) {
+  const gemHeight = Math.round((size * 150) / 120);
+  const chevronWidth = Math.round(size * 0.243);
+  const chevronHeight = Math.round(chevronWidth / 2);
+
   return (
     <div className={`vt-gem ${className}`} style={style} aria-hidden="true">
-      <svg className="vt-gem-svg" viewBox="0 0 120 150" width="140" height="175">
+      <svg
+        className="vt-gem-svg"
+        viewBox="0 0 120 150"
+        width={size}
+        height={gemHeight}
+      >
         <polygon points="60,8 22,46 60,72" fill="var(--color-mint-soft)" />
         <polygon points="60,8 98,46 60,72" fill="var(--color-mint)" />
         <polygon points="22,46 32,112 60,72" fill="var(--color-mint-deep)" />
@@ -26,16 +46,23 @@ export default function ImperiumGem({ className = "", style }: ImperiumGemProps)
           strokeWidth="1"
         />
       </svg>
-      <svg className="vt-gem-chevron" viewBox="0 0 40 20" width="34" height="17">
-        <polyline
-          points="4,4 20,16 36,4"
-          fill="none"
-          stroke="var(--color-fg)"
-          strokeWidth="3.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
+      {showChevron && (
+        <svg
+          className="vt-gem-chevron"
+          viewBox="0 0 40 20"
+          width={chevronWidth}
+          height={chevronHeight}
+        >
+          <polyline
+            points="4,4 20,16 36,4"
+            fill="none"
+            stroke="var(--color-fg)"
+            strokeWidth="3.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      )}
     </div>
   );
 }

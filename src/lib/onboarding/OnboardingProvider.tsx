@@ -63,7 +63,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       setLoadState({ status: "ready", ...onboarding });
 
       router.replace(
-        onboarding.isComplete ? "/train" : `/onboarding/${onboarding.currentStep}`
+        onboarding.isComplete ? "/home" : `/onboarding/${onboarding.currentStep}`
       );
     },
     [router]

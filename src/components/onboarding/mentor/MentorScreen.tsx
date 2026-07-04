@@ -81,7 +81,7 @@ export default function MentorScreen() {
     try {
       await saveMentorSetup(tone, focus);
       await markStepComplete("mentor");
-      router.push(trainingDone ? "/train" : "/onboarding/split");
+      router.push(trainingDone ? "/home" : "/onboarding/split");
     } catch (err) {
       setSaving(false);
       setError(err instanceof Error ? err.message : "Couldn't save. Please try again.");

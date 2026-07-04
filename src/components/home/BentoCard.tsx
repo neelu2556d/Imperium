@@ -23,6 +23,8 @@ interface BentoCardProps {
   summary?: string;
   /** Grid placement styles (grid-column / grid-row / min-height). */
   style?: React.CSSProperties;
+  /** Extra classes on the card root — used to assign a dashboard grid-area. */
+  className?: string;
 }
 
 const LONG_PRESS_MS = 400;
@@ -42,6 +44,7 @@ export default function BentoCard({
   ariaLabel,
   summary,
   style,
+  className = "",
 }: BentoCardProps) {
   const router = useRouter();
   const [showTooltip, setShowTooltip] = useState(false);
@@ -89,7 +92,7 @@ export default function BentoCard({
       role="button"
       tabIndex={0}
       aria-label={ariaLabel}
-      className="home-card card-raised relative flex flex-col p-4"
+      className={`home-card card-raised relative flex h-full flex-col p-4 ${className}`}
       style={style}
       onClick={navigate}
       onKeyDown={handleKeyDown}

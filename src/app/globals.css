@@ -654,6 +654,55 @@ select,
   }
 }
 
+/* ----- /home: full-bleed dashboard grid -----
+   Mobile: a single stacked column. From md up it becomes the reference
+   masonry — a wide TRAIN banner across the top, a tall FUEL rail on the
+   right, and the IMPERIUM mentor as the centrepiece flanked by VITALS. The
+   grid fills the viewport height so cards occupy the available space rather
+   than floating centred. */
+.home-grid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: 1fr;
+  grid-template-areas:
+    "train"
+    "imperium"
+    "vitals"
+    "fuel";
+}
+
+.home-grid > .area-train {
+  grid-area: train;
+}
+.home-grid > .area-vitals {
+  grid-area: vitals;
+}
+.home-grid > .area-imperium {
+  grid-area: imperium;
+}
+.home-grid > .area-fuel {
+  grid-area: fuel;
+}
+
+@media (min-width: 768px) {
+  .home-grid {
+    gap: 1rem;
+    grid-template-columns: 1fr 1.6fr 1fr;
+    grid-template-rows: minmax(150px, 24vh) minmax(240px, 1fr);
+    grid-template-areas:
+      "train  train    fuel"
+      "vitals imperium fuel";
+    min-height: calc(100dvh - 12rem);
+  }
+}
+
+@media (min-width: 1280px) {
+  .home-grid {
+    gap: 1.25rem;
+    grid-template-columns: 1fr 1.8fr 1fr;
+  }
+}
+
 /* ----- /home: bento cards (tactile press + mint focus glow) ----- */
 .home-card {
   cursor: pointer;

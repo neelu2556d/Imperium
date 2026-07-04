@@ -95,13 +95,24 @@ export default function HomeDashboard() {
     : "LOG A MEAL";
 
   return (
-    <div className="mx-auto w-full max-w-[390px] px-5 pb-8 pt-10">
+    <div className="w-full px-5 pb-10 pt-8 md:px-8 lg:px-12 lg:pt-10">
       {/* ---------- greeting ---------- */}
-      <header className="mb-7 flex items-center gap-4">
-        <ImperiumGem size={64} showChevron={false} style={{ flexShrink: 0 }} />
+      <header className="mb-6 flex items-center gap-4 md:mb-8 md:gap-6">
+        <ImperiumGem
+          size={72}
+          showChevron={false}
+          style={{ flexShrink: 0 }}
+          className="md:hidden"
+        />
+        <ImperiumGem
+          size={96}
+          showChevron={false}
+          style={{ flexShrink: 0 }}
+          className="hidden md:flex"
+        />
         <div className="min-w-0">
           <h1
-            className="serif-italic text-2xl leading-tight"
+            className="serif-italic text-3xl leading-tight md:text-5xl"
             data-no-vitality
             suppressHydrationWarning
           >
@@ -109,7 +120,7 @@ export default function HomeDashboard() {
             <span style={{ color: "#6EE7B7" }}>{name ?? "friend"}</span>
           </h1>
           <p
-            className="mono mt-1 text-[0.7rem] uppercase tracking-[0.18em] text-muted"
+            className="mono mt-1.5 text-[0.7rem] uppercase tracking-[0.18em] text-muted md:text-xs"
             suppressHydrationWarning
           >
             {dateStr}
@@ -117,10 +128,11 @@ export default function HomeDashboard() {
         </div>
       </header>
 
-      {/* ---------- bento grid ---------- */}
-      <div className="grid gap-2.5" style={{ gridTemplateColumns: "1.6fr 1fr" }}>
-        {/* 01 — TRAIN */}
+      {/* ---------- dashboard masonry ---------- */}
+      <div className="home-grid">
+        {/* 01 — TRAIN (wide banner) */}
         <BentoCard
+          className="area-train"
           index="01"
           icon={<DumbbellIcon size={18} />}
           label="Train"
@@ -134,18 +146,26 @@ export default function HomeDashboard() {
                 : `Today: ${data.today.name}. Last 7 sessions' volume.`
               : "No split yet — tap to set one up."
           }
-          style={cardStyle(140)}
+          style={cardStyle(150)}
         >
           {loading ? (
             <Skeleton />
           ) : (
-            <Sparkline values={data?.volumes ?? []} color={MINT} />
+            <div className="w-full">
+              <Sparkline
+                values={data?.volumes ?? []}
+                color={MINT}
+                width="100%"
+                height={56}
+              />
+            </div>
           )}
         </BentoCard>
 
         {/* 02 — VITALS */}
         <BentoCard
-          index="02"
+          className="area-vitals"
+          index="04"
           icon={<WaterDropIcon size={18} />}
           label="Vitals"
           subLabel={<span className="text-muted-strong">SLEEP · H₂O</span>}
@@ -156,7 +176,7 @@ export default function HomeDashboard() {
               ? `${sleepLatest.toFixed(1)}h sleep last night.`
               : "No vitals logged yet."
           }
-          style={cardStyle(140)}
+          style={cardStyle(150)}
         >
           {loading ? (
             <Skeleton />
@@ -170,8 +190,8 @@ export default function HomeDashboard() {
                     ? "rgba(245,158,11,0.45)"
                     : "rgba(255,255,255,0.4)"
                 }
-                width={100}
-                height={34}
+                width="100%"
+                height={40}
               />
               <p className="mono text-[0.62rem] text-muted">
                 {sleepLatest != null ? `${sleepLatest.toFixed(1)}h` : "—"}
@@ -182,76 +202,77 @@ export default function HomeDashboard() {
           )}
         </BentoCard>
 
-        {/* 03 — IMPERIUM (centerpiece) */}
-        <div style={{ gridColumn: "1 / -1" }}>
-          <BentoCard
-            index="03"
-            icon={<span />}
-            label="Imperium"
-            subLabel={<span style={{ color: MINT }}>AI MENTOR</span>}
-            href="/imperium"
-            ariaLabel="Open Imperium AI mentor"
-            summary="Your AI mentor — ask anything about your training."
-            style={{
-              minHeight: 200,
-              background: "rgba(255,255,255,0.05)",
-              backdropFilter: "blur(20px) saturate(1.4)",
-              WebkitBackdropFilter: "blur(20px) saturate(1.4)",
-            }}
-          >
-            <CircuitPattern className="pointer-events-none" />
-            <div className="relative z-[1] flex w-full flex-col items-center justify-center text-center">
-              <ImperiumGem size={56} showChevron={false} />
-              <p className="serif-italic mt-3 text-2xl text-fg" data-no-vitality>
-                Imperium
-              </p>
-              <p className="mono mt-1 text-[0.62rem] uppercase tracking-[0.2em] vt-mint">
-                Your AI mentor
-              </p>
-            </div>
-          </BentoCard>
-        </div>
+        {/* 06 — IMPERIUM (centrepiece) */}
+        <BentoCard
+          className="area-imperium"
+          index="06"
+          icon={<span />}
+          label="Imperium"
+          subLabel={<span style={{ color: MINT }}>AI MENTOR</span>}
+          href="/imperium"
+          ariaLabel="Open Imperium AI mentor"
+          summary="Your AI mentor — ask anything about your training."
+          style={{
+            minHeight: 220,
+            background: "rgba(255,255,255,0.05)",
+            backdropFilter: "blur(20px) saturate(1.4)",
+            WebkitBackdropFilter: "blur(20px) saturate(1.4)",
+          }}
+        >
+          <CircuitPattern className="pointer-events-none" />
+          <div className="relative z-[1] flex w-full flex-1 flex-col items-center justify-center text-center">
+            <ImperiumGem size={72} showChevron={false} />
+            <p
+              className="serif-italic mt-4 text-3xl text-fg md:text-4xl"
+              data-no-vitality
+            >
+              Imperium
+            </p>
+            <p className="mono mt-1.5 text-[0.62rem] uppercase tracking-[0.2em] vt-mint">
+              Your AI mentor
+            </p>
+          </div>
+        </BentoCard>
 
-        {/* 04 — FUEL */}
-        <div style={{ gridColumn: "1 / -1" }}>
-          <BentoCard
-            index="04"
-            icon={<FlameIcon size={18} />}
-            label="Fuel"
-            subLabel={<span style={{ color: MINT }}>{fuelKcal}</span>}
-            href="/fuel"
-            ariaLabel="Open Fuel"
-            summary={
-              fuel?.hasData
-                ? `${Math.round(fuel.calories)} kcal logged today.`
-                : "Nothing logged today — tap to add a meal."
-            }
-            style={cardStyle(118)}
-          >
-            {loading ? (
-              <Skeleton />
-            ) : (
-              <div className="flex w-full items-center gap-4">
-                <MacroRing
-                  calories={fuel?.calories ?? 0}
-                  goalCalories={fuel?.goalCalories ?? 2200}
-                  size={60}
-                />
-                <div className="flex flex-col gap-0.5 text-[0.72rem] leading-tight">
-                  <span style={{ color: MINT }}>
-                    {Math.round(fuel?.protein ?? 0)}g protein
-                  </span>
-                  <span style={{ color: AMBER }}>
-                    {Math.round(fuel?.carbs ?? 0)}g carbs
-                  </span>
-                  <span className="text-muted">
-                    {Math.round(fuel?.fat ?? 0)}g fat
-                  </span>
-                </div>
+        {/* 02 — FUEL (right rail) */}
+        <BentoCard
+          className="area-fuel"
+          index="02"
+          icon={<FlameIcon size={18} />}
+          label="Fuel"
+          subLabel={<span style={{ color: MINT }}>{fuelKcal}</span>}
+          href="/fuel"
+          ariaLabel="Open Fuel"
+          summary={
+            fuel?.hasData
+              ? `${Math.round(fuel.calories)} kcal logged today.`
+              : "Nothing logged today — tap to add a meal."
+          }
+          style={cardStyle(150)}
+        >
+          {loading ? (
+            <Skeleton />
+          ) : (
+            <div className="flex w-full flex-col items-center gap-4 md:items-start">
+              <MacroRing
+                calories={fuel?.calories ?? 0}
+                goalCalories={fuel?.goalCalories ?? 2200}
+                size={64}
+              />
+              <div className="flex flex-col gap-0.5 text-[0.72rem] leading-tight">
+                <span style={{ color: MINT }}>
+                  {Math.round(fuel?.protein ?? 0)}g protein
+                </span>
+                <span style={{ color: AMBER }}>
+                  {Math.round(fuel?.carbs ?? 0)}g carbs
+                </span>
+                <span className="text-muted">
+                  {Math.round(fuel?.fat ?? 0)}g fat
+                </span>
               </div>
-            )}
-          </BentoCard>
-        </div>
+            </div>
+          )}
+        </BentoCard>
       </div>
     </div>
   );

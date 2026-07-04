@@ -5,7 +5,8 @@ interface SparklineProps {
   color?: string;
   /** Glow color for the end dot. Defaults to the mint glow token. */
   glowColor?: string;
-  width?: number;
+  /** SVG width — a number (px) or a CSS length like "100%" to fill its cell. */
+  width?: number | string;
   height?: number;
 }
 

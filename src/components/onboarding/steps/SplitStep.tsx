@@ -64,7 +64,7 @@ export default function SplitStep() {
     try {
       await saveTrainingSplit(template.days);
       await markStepComplete("split");
-      router.push("/onboarding/exercises");
+      router.push("/onboarding/customize-days");
     } catch (err) {
       setSaving(false);
       setError(

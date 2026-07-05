@@ -343,6 +343,89 @@ export async function fetchExerciseHistory(
   }
 }
 
+/** One session's worth of data for the progressive-overload graph. */
+export interface ProgressPoint {
+  /** Local YYYY-MM-DD the session was logged. */
+  date: string;
+  /** Top-set weight that session — the primary (left-axis) line. */
+  weight: number;
+  /** Reps of that top set (for the tooltip). */
+  reps: number | null;
+  /** Number of sets logged that session. */
+  sets: number;
+  /** Total tonnage: Σ(weight × reps) across the session's sets — the ghost line. */
+  volume: number;
+}
+
+/**
+ * Every logged session for an exercise, oldest → newest, each collapsed to the
+ * points the overload graph plots: top-set weight, total volume, and enough
+ * detail (reps, set count) to fill the on-tap tooltip. Empty on any failure so
+ * the graph can fall back to its placeholder rather than throw.
+ */
+export async function fetchExerciseProgress(
+  exerciseId: string
+): Promise<ProgressPoint[]> {
+  try {
+    const userId = await ensureAnonymousSession();
+
+    const { data, error } = await supabase
+      .from("set_logs")
+      .select("log_date, set_number, weight, reps")
+      .eq("user_id", userId)
+      .eq("exercise_id", exerciseId)
+      .order("log_date", { ascending: true })
+      .order("set_number", { ascending: true });
+    if (error) throw error;
+
+    // Rows arrive date-ascending, so the Map keeps sessions in chronological
+    // order. Per session we track the heaviest set (its weight + reps drive the
+    // weight line and tooltip) and accumulate tonnage for the volume line.
+    const byDate = new Map<string, ProgressPoint>();
+    for (const row of data ?? []) {
+      const rec = row as Record<string, unknown>;
+      const date = rec.log_date as string;
+      const weight = rec.weight != null ? Number(rec.weight) : null;
+      const reps = rec.reps != null ? Number(rec.reps) : null;
+
+      const entry =
+        byDate.get(date) ?? { date, weight: 0, reps: null, sets: 0, volume: 0 };
+      entry.sets += 1;
+      if (weight != null && Number.isFinite(weight)) {
+        entry.volume += weight * (reps ?? 0);
+        if (weight > entry.weight) {
+          entry.weight = weight;
+          entry.reps = reps;
+        }
+      }
+      byDate.set(date, entry);
+    }
+
+    // Drop sessions with no usable weight — they'd plot as a spurious zero.
+    return [...byDate.values()].filter((p) => p.weight > 0);
+  } catch {
+    return [];
+  }
+}
+
+/** Resolves an exercise id to its display name (for the standalone graph view). */
+export async function fetchExerciseName(
+  exerciseId: string
+): Promise<string | null> {
+  try {
+    await ensureAnonymousSession();
+    const { data, error } = await supabase
+      .from("exercises")
+      .select("name")
+      .eq("id", exerciseId)
+      .maybeSingle();
+    if (error) throw error;
+    return (data?.name as string | undefined) ?? null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Marks the session complete for today. Upserts on (day, date) so re-finishing
  * (e.g. after logging one more set) updates rather than duplicates.

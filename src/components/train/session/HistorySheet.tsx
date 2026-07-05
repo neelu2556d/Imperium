@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import Sparkline from "@/components/home/Sparkline";
 import { fetchExerciseHistory, type HistoryEntry } from "@/lib/supabase/session";
 import { formatWeight } from "@/lib/train/overload";
@@ -85,6 +86,13 @@ export default function HistorySheet({
             <Sparkline values={series} width={120} height={40} />
           )}
         </div>
+
+        <Link
+          href={`/train/progress/${exerciseId}`}
+          className="link mono mt-3 inline-flex shrink-0 items-center gap-1 self-start text-[0.7rem] uppercase tracking-[0.12em]"
+        >
+          View progress →
+        </Link>
 
         <div className="mt-4 min-h-0 flex-1 overflow-y-auto">
           {entries === null ? (

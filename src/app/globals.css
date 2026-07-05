@@ -753,3 +753,42 @@ select,
     animation: none;
   }
 }
+
+/* ----- /train/session: "Finish session ★" gem celebration ----- */
+.vt-celebrate {
+  animation: vtCelebrate 1.6s var(--ease-premium) both;
+  transform-origin: 50% 50%;
+}
+
+@keyframes vtCelebrate {
+  0% {
+    opacity: 0;
+    transform: scale(0.6);
+    filter: drop-shadow(0 0 0 var(--color-mint-glow));
+  }
+  35% {
+    opacity: 1;
+    transform: scale(1.08);
+    filter: drop-shadow(0 0 40px var(--color-mint-glow))
+      drop-shadow(0 0 80px var(--color-mint-glow));
+  }
+  60% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 24px var(--color-mint-glow));
+  }
+  80% {
+    opacity: 1;
+    filter: drop-shadow(0 0 48px var(--color-mint-glow));
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.02);
+    filter: drop-shadow(0 0 8px var(--color-mint-glow));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vt-celebrate {
+    animation: vtCelebrate 1.6s steps(1) both;
+  }
+}

@@ -1,0 +1,367 @@
+import { ensureAnonymousSession, supabase } from "@/lib/supabase/client";
+import type { MuscleGroup } from "@/lib/split/exerciseCatalog";
+import { isCompoundTier, type LastSessionStat } from "@/lib/train/overload";
+
+/**
+ * Data layer for the /train/session/[day_id] logging screen. Like the /train
+ * dashboard layer it is defensive: a brand-new user may have a day with no
+ * picks and no history, so reads return empty shapes instead of throwing. The
+ * writes (log a set, swap an exercise, finish the session) do surface errors so
+ * the screen can show a retry — logging is the one place a silent failure would
+ * lose the user's work.
+ */
+
+/** Local YYYY-MM-DD for the user's wall clock — how log_date is stored/read. */
+export function todayISO(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+/** Header facts for the session: the day's name and where it sits in the split. */
+export interface SessionDay {
+  id: string;
+  name: string;
+  isRest: boolean;
+  /** 1-based position among the split's training (non-rest) days. */
+  dayNumber: number;
+  /** Count of training (non-rest) days in the split. */
+  trainingDayCount: number;
+}
+
+/** One prescribed set that has already been logged (today, or in the swap flow). */
+export interface LoggedSet {
+  setNumber: number;
+  weight: number | null;
+  reps: number | null;
+  rpe: number | null;
+  isDeload: boolean;
+}
+
+/** An exercise picked for this day, with everything the card needs to render. */
+export interface SessionExercise {
+  /** day_exercises row id — the swap flow updates this row. */
+  rowId: string;
+  exerciseId: string;
+  name: string;
+  muscleGroup: MuscleGroup | null;
+  tier: string | null;
+  isCompound: boolean;
+  formCue: string | null;
+  prescribedSets: number;
+  prescribedReps: number;
+  /** Most recent completed session's carry-forward stat (drives suggestions). */
+  last: LastSessionStat;
+  /** The raw weight of the last session, for the "LAST [x]kg" sub-label. */
+  lastWeight: number | null;
+  /** Sets already logged today, keyed for the card to mark them done on load. */
+  loggedToday: LoggedSet[];
+}
+
+/**
+ * The session day's header facts. Resolves the day's position among the split's
+ * training days ("DAY 2 OF 4"). Null if the id doesn't resolve to a day.
+ */
+export async function fetchSessionDay(dayId: string): Promise<SessionDay | null> {
+  try {
+    const userId = await ensureAnonymousSession();
+
+    const { data, error } = await supabase
+      .from("training_split")
+      .select("id, name, is_rest_day, day_order")
+      .eq("user_id", userId)
+      .order("day_order", { ascending: true });
+    if (error) throw error;
+
+    const rows = data ?? [];
+    const training = rows.filter((r) => !r.is_rest_day);
+    const idx = training.findIndex((r) => r.id === dayId);
+    const self = rows.find((r) => r.id === dayId);
+    if (!self) return null;
+
+    return {
+      id: self.id as string,
+      name: self.name as string,
+      isRest: Boolean(self.is_rest_day),
+      dayNumber: idx >= 0 ? idx + 1 : 1,
+      trainingDayCount: training.length,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** Groups a flat run of set rows (newest date first) into per-exercise last stats. */
+function computeLastStats(
+  rows: Array<Record<string, unknown>>,
+  prescribedRepsById: Map<string, number>
+): Map<string, { weight: number | null; allRepsHit: boolean }> {
+  // Rows arrive ordered by log_date desc, so the first date we see per exercise
+  // is its most recent session. We collect just that date's sets per exercise.
+  const latestDate = new Map<string, string>();
+  const setsByExercise = new Map<string, Array<{ weight: number; reps: number }>>();
+
+  for (const row of rows) {
+    const exId = row.exercise_id as string;
+    const date = row.log_date as string;
+    const seen = latestDate.get(exId);
+    if (seen === undefined) latestDate.set(exId, date);
+    if (latestDate.get(exId) !== date) continue; // older session — skip
+
+    const weight = Number(row.weight);
+    const reps = Number(row.reps);
+    if (!Number.isFinite(weight)) continue;
+    const list = setsByExercise.get(exId) ?? [];
+    list.push({ weight, reps: Number.isFinite(reps) ? reps : 0 });
+    setsByExercise.set(exId, list);
+  }
+
+  const out = new Map<string, { weight: number | null; allRepsHit: boolean }>();
+  for (const [exId, sets] of setsByExercise) {
+    const target = prescribedRepsById.get(exId) ?? 0;
+    const topWeight = sets.reduce((m, s) => Math.max(m, s.weight), 0);
+    const allRepsHit = sets.length > 0 && sets.every((s) => s.reps >= target);
+    out.set(exId, { weight: topWeight || null, allRepsHit });
+  }
+  return out;
+}
+
+/**
+ * Every exercise picked for this day, in display order, each carrying its
+ * prescription, its last-session carry-forward stat (for suggestions), and any
+ * sets already logged today (so a reload restores the checked rows).
+ */
+export async function fetchSessionExercises(
+  dayId: string
+): Promise<SessionExercise[]> {
+  try {
+    const userId = await ensureAnonymousSession();
+
+    const { data, error } = await supabase
+      .from("day_exercises")
+      .select(
+        "id, exercise_id, exercise_order, prescribed_sets, prescribed_reps, exercises ( id, name, muscle_group, tier, notes )"
+      )
+      .eq("training_split_id", dayId)
+      .eq("user_id", userId)
+      .order("exercise_order", { ascending: true });
+    if (error) throw error;
+
+    const rows = (data ?? []).filter(
+      (r) => (r as Record<string, unknown>).exercises
+    );
+    const exerciseIds = rows.map(
+      (r) => (r as Record<string, unknown>).exercise_id as string
+    );
+
+    const prescribedRepsById = new Map<string, number>();
+    for (const r of rows) {
+      const rec = r as Record<string, unknown>;
+      prescribedRepsById.set(
+        rec.exercise_id as string,
+        (rec.prescribed_reps as number) ?? 8
+      );
+    }
+
+    const today = todayISO();
+
+    // Last completed sessions (strictly before today) for the suggestions, and
+    // anything already logged today for restoring the checked state.
+    const [historyRes, todayRes] = await Promise.all([
+      exerciseIds.length
+        ? supabase
+            .from("set_logs")
+            .select("exercise_id, log_date, weight, reps")
+            .eq("user_id", userId)
+            .in("exercise_id", exerciseIds)
+            .lt("log_date", today)
+            .order("log_date", { ascending: false })
+        : Promise.resolve({ data: [], error: null }),
+      exerciseIds.length
+        ? supabase
+            .from("set_logs")
+            .select("exercise_id, set_number, weight, reps, rpe, is_deload")
+            .eq("user_id", userId)
+            .in("exercise_id", exerciseIds)
+            .eq("log_date", today)
+        : Promise.resolve({ data: [], error: null }),
+    ]);
+
+    if (historyRes.error) throw historyRes.error;
+    if (todayRes.error) throw todayRes.error;
+
+    const lastStats = computeLastStats(
+      (historyRes.data ?? []) as Array<Record<string, unknown>>,
+      prescribedRepsById
+    );
+
+    const loggedByExercise = new Map<string, LoggedSet[]>();
+    for (const row of todayRes.data ?? []) {
+      const rec = row as Record<string, unknown>;
+      const exId = rec.exercise_id as string;
+      const list = loggedByExercise.get(exId) ?? [];
+      list.push({
+        setNumber: (rec.set_number as number) ?? list.length + 1,
+        weight: rec.weight != null ? Number(rec.weight) : null,
+        reps: rec.reps != null ? Number(rec.reps) : null,
+        rpe: rec.rpe != null ? Number(rec.rpe) : null,
+        isDeload: Boolean(rec.is_deload),
+      });
+      loggedByExercise.set(exId, list);
+    }
+
+    return rows.map((r) => {
+      const rec = r as Record<string, unknown>;
+      const ex = rec.exercises as Record<string, unknown>;
+      const exId = rec.exercise_id as string;
+      const tier = (ex.tier as string | null) ?? null;
+      const stat = lastStats.get(exId) ?? { weight: null, allRepsHit: false };
+
+      return {
+        rowId: rec.id as string,
+        exerciseId: exId,
+        name: ex.name as string,
+        muscleGroup: (ex.muscle_group as MuscleGroup | null) ?? null,
+        tier,
+        isCompound: isCompoundTier(tier),
+        formCue: (ex.notes as string | null) ?? null,
+        prescribedSets: (rec.prescribed_sets as number) ?? 4,
+        prescribedReps: (rec.prescribed_reps as number) ?? 8,
+        last: stat,
+        lastWeight: stat.weight,
+        loggedToday: (loggedByExercise.get(exId) ?? []).sort(
+          (a, b) => a.setNumber - b.setNumber
+        ),
+      };
+    });
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Records one set. Because a user can re-tap "HIT IT" to correct a set they
+ * already logged today, this replaces any existing row for the same
+ * (exercise, set, today) rather than stacking duplicates.
+ */
+export async function logSet(input: {
+  exerciseId: string;
+  setNumber: number;
+  weight: number;
+  reps: number;
+  rpe: number | null;
+  isDeload: boolean;
+}): Promise<void> {
+  const userId = await ensureAnonymousSession();
+  const date = todayISO();
+
+  const { error: delError } = await supabase
+    .from("set_logs")
+    .delete()
+    .eq("user_id", userId)
+    .eq("exercise_id", input.exerciseId)
+    .eq("log_date", date)
+    .eq("set_number", input.setNumber);
+  if (delError) throw delError;
+
+  const { error } = await supabase.from("set_logs").insert({
+    user_id: userId,
+    exercise_id: input.exerciseId,
+    log_date: date,
+    set_number: input.setNumber,
+    weight: input.weight,
+    reps: input.reps,
+    rpe: input.rpe,
+    is_deload: input.isDeload,
+  });
+  if (error) throw error;
+}
+
+/**
+ * Swaps the exercise on a day_exercises row for another (the "always" branch of
+ * the swap sheet — "today only" is handled in the screen's local state). Carries
+ * the existing prescription over to the replacement.
+ */
+export async function swapDayExercise(
+  rowId: string,
+  newExerciseId: string
+): Promise<void> {
+  const userId = await ensureAnonymousSession();
+  const { error } = await supabase
+    .from("day_exercises")
+    .update({ exercise_id: newExerciseId })
+    .eq("id", rowId)
+    .eq("user_id", userId);
+  if (error) throw error;
+}
+
+/** One past session of an exercise, for the history sheet. */
+export interface HistoryEntry {
+  date: string;
+  sets: Array<{ weight: number | null; reps: number | null }>;
+  /** Top-set weight that day — the sparkline's data point. */
+  topWeight: number;
+}
+
+/**
+ * Every past session for an exercise, newest first, each collapsed to its set
+ * list plus a top-set weight for the progression sparkline.
+ */
+export async function fetchExerciseHistory(
+  exerciseId: string
+): Promise<HistoryEntry[]> {
+  try {
+    const userId = await ensureAnonymousSession();
+
+    const { data, error } = await supabase
+      .from("set_logs")
+      .select("log_date, set_number, weight, reps")
+      .eq("user_id", userId)
+      .eq("exercise_id", exerciseId)
+      .order("log_date", { ascending: false })
+      .order("set_number", { ascending: true });
+    if (error) throw error;
+
+    const byDate = new Map<string, HistoryEntry>();
+    for (const row of data ?? []) {
+      const rec = row as Record<string, unknown>;
+      const date = rec.log_date as string;
+      const weight = rec.weight != null ? Number(rec.weight) : null;
+      const reps = rec.reps != null ? Number(rec.reps) : null;
+      const entry =
+        byDate.get(date) ?? { date, sets: [], topWeight: 0 };
+      entry.sets.push({ weight, reps });
+      if (weight != null) entry.topWeight = Math.max(entry.topWeight, weight);
+      byDate.set(date, entry);
+    }
+
+    return [...byDate.values()];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Marks the session complete for today. Upserts on (day, date) so re-finishing
+ * (e.g. after logging one more set) updates rather than duplicates.
+ */
+export async function finishSession(
+  dayId: string,
+  isDeload: boolean
+): Promise<void> {
+  const userId = await ensureAnonymousSession();
+  const { error } = await supabase
+    .from("session_completions")
+    .upsert(
+      {
+        user_id: userId,
+        training_split_id: dayId,
+        completed_date: todayISO(),
+        is_deload: isDeload,
+      },
+      { onConflict: "training_split_id,completed_date" }
+    );
+  if (error) throw error;
+}

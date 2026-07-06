@@ -22,7 +22,7 @@ const TABS: Tab[] = [
   { href: "/train", label: "Train", Icon: DumbbellIcon },
   { href: "/vitals", label: "Vitals", Icon: WaterDropIcon },
   { href: "/fuel", label: "Fuel", Icon: FlameIcon },
-  { href: "/imperium", label: "Imperium", Icon: GemIcon },
+  { href: "/mentor", label: "Imperium", Icon: GemIcon },
 ];
 
 export default function BottomNav() {

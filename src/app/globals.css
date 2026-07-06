@@ -754,6 +754,47 @@ select,
   }
 }
 
+/* ----- /mentor: typing indicator (three pulsing mint dots) ----- */
+.mentor-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-mint);
+  animation: mentorDot 1.2s var(--ease-DEFAULT) infinite;
+}
+.mentor-dot:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.mentor-dot:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes mentorDot {
+  0%,
+  60%,
+  100% {
+    opacity: 0.25;
+    transform: translateY(0);
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+
+/* ----- /mentor: gently pulsing glow on the top-bar gem ----- */
+.mentor-gem-glow {
+  filter: drop-shadow(0 0 6px var(--color-mint-glow))
+    drop-shadow(0 0 12px var(--color-mint-glow));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mentor-dot {
+    animation: none;
+    opacity: 0.6;
+  }
+}
+
 /* ----- /train/session: "Finish session ★" gem celebration ----- */
 .vt-celebrate {
   animation: vtCelebrate 1.6s var(--ease-premium) both;

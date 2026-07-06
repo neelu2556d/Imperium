@@ -100,6 +100,33 @@ export async function saveTrainingAnswer(
   if (error) throw error;
 }
 
+export interface ProfileBasicsValues {
+  name: string;
+  age: number | null;
+  heightCm: number | null;
+  weightKg: number | null;
+}
+
+/** Loads the full "About you" set for prefilling the settings profile form. */
+export async function fetchProfileBasics(): Promise<ProfileBasicsValues> {
+  const userId = await ensureAnonymousSession();
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("name, first_name, age, height_cm, weight_kg")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) throw error;
+
+  return {
+    name: (data?.name as string) ?? (data?.first_name as string) ?? "",
+    age: data?.age ?? null,
+    heightCm: data?.height_cm ?? null,
+    weightKg: data?.weight_kg ?? null,
+  };
+}
+
 export interface BodyStats {
   heightCm: number | null;
   weightKg: number | null;

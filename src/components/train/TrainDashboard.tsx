@@ -101,9 +101,9 @@ export default function TrainDashboard() {
             <span aria-hidden>→</span>
           </Link>
           <Link
-            href="/onboarding/training"
+            href="/settings"
             data-no-vitality
-            aria-label="Training settings"
+            aria-label="Settings"
             className="flex h-9 w-9 items-center justify-center rounded-full border border-border text-muted transition-colors hover:border-mint hover:text-fg"
           >
             <GearIcon size={17} />

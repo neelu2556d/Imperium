@@ -28,6 +28,12 @@ const TABS: Tab[] = [
 export default function BottomNav() {
   const pathname = usePathname();
 
+  // The auth screens are pre-login; their nav targets are all gated, so the
+  // tab bar would only bounce users back to sign-in. Hide it there.
+  if (pathname.startsWith("/auth")) {
+    return null;
+  }
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-bg/70 backdrop-blur-lg">
       <ul className="flex">

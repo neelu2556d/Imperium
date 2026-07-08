@@ -10,6 +10,7 @@ import {
   saveSleepGoal,
   type SleepState,
 } from "@/lib/supabase/vitals";
+import { pushToast } from "@/lib/toast";
 
 const MONTHS = [
   "Jan", "Feb", "Mar", "Apr", "May", "Jun",
@@ -60,6 +61,8 @@ export default function SleepSection() {
       await logSleep(computed, state.goal);
       setLogging(false);
       await load();
+    } catch {
+      pushToast("Couldn't log your sleep. Try again.");
     } finally {
       setSaving(false);
     }

@@ -3,6 +3,7 @@ import { Inter, Newsreader, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import BottomNav from "@/components/BottomNav";
 import VitalityBackdrop from "@/components/VitalityBackdrop";
+import Toaster from "@/components/Toaster";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -51,6 +52,7 @@ export default function RootLayout({
         <VitalityBackdrop />
         <main className="flex-1 pb-20">{children}</main>
         <BottomNav />
+        <Toaster />
       </body>
     </html>
   );

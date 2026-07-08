@@ -1,4 +1,8 @@
 import { ensureAnonymousSession, supabase } from "@/lib/supabase/client";
+import { reportQueryError } from "@/lib/toast";
+
+/** Shared toast copy so a burst of failed vitals reads collapses into one pill. */
+const VITALS_READ_ERROR = "Couldn't load your vitals.";
 
 /**
  * Data layer for the /vitals tab (sleep, water, body weight, progress photos).
@@ -78,6 +82,7 @@ export async function fetchSleep(): Promise<SleepState> {
       })),
     };
   } catch {
+    reportQueryError(VITALS_READ_ERROR);
     return empty;
   }
 }
@@ -158,6 +163,7 @@ export async function fetchWater(): Promise<WaterState> {
       : DEFAULT_WATER_GOAL;
     return { today, goal };
   } catch {
+    reportQueryError(VITALS_READ_ERROR);
     return empty;
   }
 }
@@ -209,6 +215,7 @@ export async function fetchBodyWeights(): Promise<WeightPoint[]> {
     }
     return [...byDate.entries()].map(([date, weight]) => ({ date, weight }));
   } catch {
+    reportQueryError(VITALS_READ_ERROR);
     return [];
   }
 }
@@ -257,6 +264,7 @@ export async function fetchPhotos(): Promise<ProgressPhoto[]> {
       notes: (r.notes as string | null) ?? null,
     }));
   } catch {
+    reportQueryError(VITALS_READ_ERROR);
     return [];
   }
 }

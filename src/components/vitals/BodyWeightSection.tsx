@@ -10,6 +10,7 @@ import {
   localISODate,
   type WeightPoint,
 } from "@/lib/supabase/vitals";
+import { pushToast } from "@/lib/toast";
 
 const KG_PER_LB = 0.453592;
 
@@ -44,6 +45,8 @@ export default function BodyWeightSection() {
       setLogging(false);
       setEntry("");
       await load();
+    } catch {
+      pushToast("Couldn't save your weight. Try again.");
     } finally {
       setSaving(false);
     }

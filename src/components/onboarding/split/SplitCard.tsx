@@ -125,7 +125,7 @@ export default function SplitCard({
           role="tooltip"
           className="absolute right-2 top-9 z-10 w-[85%] rounded-lg p-2.5 text-[0.7rem] leading-snug text-muted-strong shadow-lg"
           style={{
-            background: "var(--color-bg-elevated, #0a0a0a)",
+            background: "var(--color-bg-elevated)",
             border: "1px solid var(--color-border-strong)",
           }}
         >

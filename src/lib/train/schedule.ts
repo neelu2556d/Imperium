@@ -1,8 +1,10 @@
 /**
  * Pure scheduling helpers for the /train dashboard. Kept free of React and
  * Supabase so the "which day is today" maths can be reasoned about in isolation.
- * The dashboard feeds these the user's account-creation date and their local
- * `new Date()` so the highlighted card reflects their wall clock.
+ * The dashboard feeds these the user's FIRST logged session date (the anchor the
+ * split cycles from) and their local `new Date()` so the highlighted card
+ * reflects their wall clock. Before anything is logged the dashboard defaults to
+ * day 1 without calling these.
  */
 
 /**

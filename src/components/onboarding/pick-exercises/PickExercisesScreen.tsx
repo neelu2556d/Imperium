@@ -201,7 +201,7 @@ export default function PickExercisesScreen() {
         type="button"
         data-no-vitality
         onClick={() => router.push("/onboarding/customize-days")}
-        className="inline-flex items-center gap-1.5 border-0 bg-transparent p-0 text-sm text-muted transition-colors hover:text-white"
+        className="inline-flex items-center gap-1.5 border-0 bg-transparent p-0 text-sm text-muted transition-colors hover:text-fg"
       >
         <svg
           width="16"
@@ -452,7 +452,7 @@ export default function PickExercisesScreen() {
                 data-no-vitality
                 aria-label={`About ${pick.name}`}
                 onClick={() => setInfoIndex((cur) => (cur === index ? null : index))}
-                className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-0 bg-transparent p-0 text-muted transition-colors hover:text-white"
+                className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-0 bg-transparent p-0 text-muted transition-colors hover:text-fg"
               >
                 <svg
                   width="17"

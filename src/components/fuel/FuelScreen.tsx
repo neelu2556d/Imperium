@@ -5,6 +5,7 @@ import MacroSummary from "@/components/fuel/MacroSummary";
 import FoodLog from "@/components/fuel/FoodLog";
 import AddFood from "@/components/fuel/AddFood";
 import GoalsCard from "@/components/fuel/GoalsCard";
+import { pushToast } from "@/lib/toast";
 import {
   DEFAULT_NUTRITION_GOALS,
   deleteFoodLog,
@@ -66,6 +67,7 @@ export default function FuelScreen() {
         await deleteFoodLog(id);
       } catch {
         setLogs(prev); // roll back on failure
+        pushToast("Couldn't delete that entry. Try again.");
       }
     },
     [logs]

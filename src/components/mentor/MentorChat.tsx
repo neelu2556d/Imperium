@@ -61,7 +61,7 @@ function QuickPrompts({
           type="button"
           data-no-vitality
           onClick={() => onPick(prompt)}
-          className="rounded-full border border-border px-3 py-1.5 text-xs font-medium text-muted-strong transition-colors hover:border-[color:var(--color-mint)] hover:text-white"
+          className="rounded-full border border-border px-3 py-1.5 text-xs font-medium text-muted-strong transition-colors hover:border-[color:var(--color-mint)] hover:text-fg"
           style={{ background: "var(--color-card)" }}
         >
           {prompt}
@@ -181,7 +181,7 @@ export default function MentorChat() {
           style={{ gap: 0 } as CSSProperties}
         />
         <div className="flex flex-col leading-none">
-          <span className="serif-italic text-xl text-white">Imperium</span>
+          <span className="serif-italic text-xl text-fg">Imperium</span>
           <span className="mt-0.5 text-[0.7rem] text-muted">your coach</span>
         </div>
       </header>
@@ -196,7 +196,7 @@ export default function MentorChat() {
           <div className="vt-rise-in space-y-4">
             <div className="flex items-start gap-2">
               <GemMark />
-              <div className="card max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed text-white">
+              <div className="card max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed text-fg">
                 Hey {name}. I&apos;ve got your data loaded. Ask me anything —
                 your session, your recovery, your progress. I&apos;m here.
               </div>
@@ -221,7 +221,7 @@ export default function MentorChat() {
           ) : (
             <div key={m.id} className="vt-rise-in flex items-start gap-2">
               <GemMark />
-              <div className="card max-w-[80%] whitespace-pre-wrap rounded-2xl px-4 py-3 text-sm leading-relaxed text-white">
+              <div className="card max-w-[80%] whitespace-pre-wrap rounded-2xl px-4 py-3 text-sm leading-relaxed text-fg">
                 {m.content}
               </div>
             </div>
@@ -268,14 +268,14 @@ export default function MentorChat() {
             onChange={(e) => setInput(e.target.value)}
             placeholder="Ask your coach…"
             aria-label="Message your coach"
-            className="min-w-0 flex-1 bg-transparent px-3 py-2.5 text-sm text-white outline-none placeholder:text-[color:var(--color-muted)]"
+            className="min-w-0 flex-1 bg-transparent px-3 py-2.5 text-sm text-fg outline-none placeholder:text-[color:var(--color-muted)]"
           />
           <button
             type="button"
             data-no-vitality
             aria-label="Voice input (coming soon)"
             title="Voice input — coming soon"
-            className="flex h-9 w-9 items-center justify-center rounded-full text-muted transition-colors hover:text-white"
+            className="flex h-9 w-9 items-center justify-center rounded-full text-muted transition-colors hover:text-fg"
           >
             <MicIcon />
           </button>

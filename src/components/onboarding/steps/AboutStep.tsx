@@ -112,7 +112,7 @@ export default function AboutStep() {
         href="/welcome"
         aria-label="Go back"
         data-no-vitality
-        className="inline-flex h-9 w-9 items-center justify-center rounded-full text-white/70 transition-colors hover:text-white"
+        className="inline-flex h-9 w-9 items-center justify-center rounded-full text-fg/70 transition-colors hover:text-fg"
       >
         <svg
           width="20"

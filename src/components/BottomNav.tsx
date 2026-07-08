@@ -28,9 +28,14 @@ const TABS: Tab[] = [
 export default function BottomNav() {
   const pathname = usePathname();
 
-  // The auth screens are pre-login; their nav targets are all gated, so the
-  // tab bar would only bounce users back to sign-in. Hide it there.
-  if (pathname.startsWith("/auth")) {
+  // Pre-app flows (auth, welcome, onboarding) are entered before the tabs are
+  // meaningful — their nav targets are gated, and showing a tab bar with no
+  // active tab would only tempt users out of the flow. Hide it on all of them.
+  if (
+    pathname.startsWith("/auth") ||
+    pathname.startsWith("/welcome") ||
+    pathname.startsWith("/onboarding")
+  ) {
     return null;
   }
 

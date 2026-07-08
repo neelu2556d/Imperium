@@ -102,7 +102,7 @@ export default function FoodLogRow({ item, onDelete }: FoodLogRowProps) {
         style={{
           width: 72,
           background: "var(--color-red)",
-          color: "#fff",
+          color: "var(--color-fg)",
           borderRadius: 0,
         }}
       >

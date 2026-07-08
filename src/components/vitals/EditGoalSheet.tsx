@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import BottomSheet from "@/components/vitals/BottomSheet";
+import { pushToast } from "@/lib/toast";
 
 /**
  * A one-field "edit goal" bottom sheet: a labelled number input pre-filled with
@@ -41,6 +42,7 @@ export default function EditGoalSheet({
       onClose();
     } catch {
       setSaving(false);
+      pushToast("Couldn't save your goal. Try again.");
     }
   };
 

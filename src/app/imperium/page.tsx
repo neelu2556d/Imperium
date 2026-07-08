@@ -1,8 +1,10 @@
+import { redirect } from "next/navigation";
+
+/**
+ * The Imperium mentor experience lives at /mentor (the tab the bottom nav and
+ * the home bento card both point at). This legacy path just forwards there so
+ * any old link or bookmark lands on the real chat instead of a dead placeholder.
+ */
 export default function ImperiumPage() {
-  return (
-    <div className="flex flex-col items-center justify-center px-6 py-24 text-center">
-      <h1 className="text-2xl font-semibold">Imperium</h1>
-      <p className="mt-2 text-sm opacity-70">Placeholder — content coming soon.</p>
-    </div>
-  );
+  redirect("/mentor");
 }

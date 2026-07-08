@@ -1,4 +1,5 @@
 import { ensureAnonymousSession, supabase } from "@/lib/supabase/client";
+import { reportQueryError } from "@/lib/toast";
 
 /**
  * Data layer for the /train dashboard. Like the /home layer, every fetch is
@@ -36,18 +37,29 @@ export interface LastSession {
 }
 
 /**
- * The user's account-creation date, read from their Supabase auth user. This
- * is the anchor the split cycles from. Null if there's somehow no session.
+ * The date of the user's FIRST ever logged set — the anchor the split cycles
+ * from, so "today's" training day is `daysSince(firstSession) mod splitLength`.
+ * Returns null when nothing has been logged yet; the dashboard treats that as
+ * "default to day 1". Parsed from the local YYYY-MM-DD `log_date` so the day
+ * doesn't shift under UTC.
  */
-export async function fetchAccountCreatedAt(): Promise<Date | null> {
+export async function fetchFirstSessionDate(): Promise<Date | null> {
   try {
-    await ensureAnonymousSession();
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    const created = session?.user?.created_at;
-    return created ? new Date(created) : null;
+    const userId = await ensureAnonymousSession();
+    const { data, error } = await supabase
+      .from("set_logs")
+      .select("log_date")
+      .eq("user_id", userId)
+      .order("log_date", { ascending: true })
+      .limit(1);
+    if (error) throw error;
+
+    const iso = data?.[0]?.log_date as string | undefined;
+    if (!iso) return null;
+    const [y, m, d] = iso.split("-").map(Number);
+    return new Date(y, (m ?? 1) - 1, d ?? 1);
   } catch {
+    reportQueryError("Couldn't load your training history.");
     return null;
   }
 }

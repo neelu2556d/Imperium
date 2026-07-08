@@ -80,7 +80,7 @@ export default function SplitStep() {
         aria-label="Go back"
         data-no-vitality
         onClick={() => router.push("/onboarding/training")}
-        className="inline-flex h-9 w-9 items-center justify-center rounded-full border-0 bg-transparent p-0 text-white/70 transition-colors hover:text-white"
+        className="inline-flex h-9 w-9 items-center justify-center rounded-full border-0 bg-transparent p-0 text-fg/70 transition-colors hover:text-fg"
       >
         <svg
           width="20"
@@ -131,7 +131,7 @@ export default function SplitStep() {
         type="button"
         data-no-vitality
         onClick={() => router.push("/onboarding/custom-split")}
-        className="mt-4 w-full rounded-xl border border-dashed py-3 text-sm text-muted-strong transition-colors hover:text-white"
+        className="mt-4 w-full rounded-xl border border-dashed py-3 text-sm text-muted-strong transition-colors hover:text-fg"
         style={{ borderColor: "var(--color-border-strong)", background: "transparent" }}
       >
         + Build your own

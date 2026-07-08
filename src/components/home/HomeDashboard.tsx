@@ -117,7 +117,7 @@ export default function HomeDashboard() {
             suppressHydrationWarning
           >
             {greetingLead},{" "}
-            <span style={{ color: "#6EE7B7" }}>{name ?? "friend"}</span>
+            <span style={{ color: "var(--color-mint)" }}>{name ?? "friend"}</span>
           </h1>
           <p
             className="mono mt-1.5 text-[0.7rem] uppercase tracking-[0.18em] text-muted md:text-xs"
@@ -209,7 +209,7 @@ export default function HomeDashboard() {
           icon={<span />}
           label="Imperium"
           subLabel={<span style={{ color: MINT }}>AI MENTOR</span>}
-          href="/imperium"
+          href="/mentor"
           ariaLabel="Open Imperium AI mentor"
           summary="Your AI mentor — ask anything about your training."
           style={{

@@ -48,7 +48,7 @@ export default function ExercisesScreen() {
         aria-label="Go back"
         data-no-vitality
         onClick={() => router.push("/onboarding/split")}
-        className="inline-flex h-9 w-9 items-center justify-center rounded-full border-0 bg-transparent p-0 text-white/70 transition-colors hover:text-white"
+        className="inline-flex h-9 w-9 items-center justify-center rounded-full border-0 bg-transparent p-0 text-fg/70 transition-colors hover:text-fg"
       >
         <svg
           width="20"

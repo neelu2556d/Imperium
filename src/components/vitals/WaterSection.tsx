@@ -11,6 +11,7 @@ import {
   saveWaterGoal,
   type WaterState,
 } from "@/lib/supabase/vitals";
+import { pushToast } from "@/lib/toast";
 
 const QUICK_ADDS = [0.25, 0.5, 0.75]; // litres — labelled in ml
 
@@ -43,7 +44,8 @@ export default function WaterSection() {
       await addWater(liters, goal);
       await load();
     } catch {
-      await load();
+      await load(); // reconcile the optimistic bump
+      pushToast("Couldn't log that water. Try again.");
     } finally {
       setBusy(false);
     }

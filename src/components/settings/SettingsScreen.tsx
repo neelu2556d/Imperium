@@ -719,7 +719,7 @@ export default function SettingsScreen() {
           href="/train"
           aria-label="Back to training"
           data-no-vitality
-          className="inline-flex h-9 w-9 items-center justify-center rounded-full text-white/70 transition-colors hover:text-white"
+          className="inline-flex h-9 w-9 items-center justify-center rounded-full text-fg/70 transition-colors hover:text-fg"
         >
           <svg
             width="20"

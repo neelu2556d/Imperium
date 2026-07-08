@@ -137,7 +137,7 @@ export default function CustomizeDaysScreen() {
         type="button"
         data-no-vitality
         onClick={() => router.push("/onboarding/split")}
-        className="inline-flex items-center gap-1.5 border-0 bg-transparent p-0 text-sm text-muted transition-colors hover:text-white"
+        className="inline-flex items-center gap-1.5 border-0 bg-transparent p-0 text-sm text-muted transition-colors hover:text-fg"
       >
         <svg
           width="16"
@@ -352,7 +352,7 @@ export default function CustomizeDaysScreen() {
         type="button"
         data-no-vitality
         onClick={addDay}
-        className="mt-3 w-full rounded-full border border-dashed py-2.5 text-sm text-muted-strong transition-colors hover:text-white"
+        className="mt-3 w-full rounded-full border border-dashed py-2.5 text-sm text-muted-strong transition-colors hover:text-fg"
         style={{ borderColor: "var(--color-border-strong)", background: "transparent" }}
       >
         + Add day
@@ -370,7 +370,7 @@ export default function CustomizeDaysScreen() {
           type="button"
           data-no-vitality
           onClick={() => router.push("/onboarding/split")}
-          className="rounded-full border px-5 py-3 text-sm font-semibold text-muted-strong transition-colors hover:text-white"
+          className="rounded-full border px-5 py-3 text-sm font-semibold text-muted-strong transition-colors hover:text-fg"
           style={{ borderColor: "var(--color-border-strong)", background: "transparent" }}
         >
           Back

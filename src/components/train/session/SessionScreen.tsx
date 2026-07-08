@@ -26,12 +26,12 @@ import {
  * shifts mint → blue without threading a colour prop through every component.
  */
 const DELOAD_VARS: CSSProperties = {
-  ["--color-mint" as string]: "#60A5FA",
-  ["--color-mint-hover" as string]: "#3B82F6",
-  ["--color-mint-ink" as string]: "#0A1A2E",
-  ["--color-mint-glow" as string]: "rgba(96,165,250,0.4)",
-  ["--color-mint-soft" as string]: "#BFDBFE",
-  ["--color-mint-deep" as string]: "#1E3A5F",
+  ["--color-mint" as string]: "var(--color-cool)",
+  ["--color-mint-hover" as string]: "var(--color-cool-hover)",
+  ["--color-mint-ink" as string]: "var(--color-cool-ink)",
+  ["--color-mint-glow" as string]: "var(--color-cool-glow)",
+  ["--color-mint-soft" as string]: "var(--color-cool-soft)",
+  ["--color-mint-deep" as string]: "var(--color-cool-deep)",
 };
 
 type LoadState =
@@ -319,7 +319,7 @@ export default function SessionScreen({ dayId }: { dayId: string }) {
           className="flex items-center justify-between rounded-xl border p-4 text-left"
           style={{
             borderColor: deload ? "var(--color-mint)" : "var(--color-border-strong)",
-            background: deload ? "rgba(96,165,250,0.08)" : "var(--color-card)",
+            background: deload ? "var(--color-cool-tint)" : "var(--color-card)",
           }}
         >
           <div>
@@ -338,7 +338,7 @@ export default function SessionScreen({ dayId }: { dayId: string }) {
             aria-hidden
           >
             <span
-              className="absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all"
+              className="absolute top-0.5 h-5 w-5 rounded-full bg-fg transition-all"
               style={{ left: deload ? "1.375rem" : "0.125rem" }}
             />
           </span>

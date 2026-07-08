@@ -8,7 +8,7 @@ import { GearIcon, PlusIcon, RefreshIcon } from "@/components/train/icons";
 import { formatToday } from "@/lib/home/datetime";
 import { todayIndexInSplit } from "@/lib/train/schedule";
 import {
-  fetchAccountCreatedAt,
+  fetchFirstSessionDate,
   fetchLastSession,
   fetchSplitDays,
   type LastSession,
@@ -16,7 +16,8 @@ import {
 } from "@/lib/supabase/train";
 
 interface TrainData {
-  createdAt: Date | null;
+  /** First-ever logged session date — the anchor the split cycles from. */
+  firstSession: Date | null;
   days: TrainSplitDay[];
   lastSession: LastSession | null;
 }
@@ -50,12 +51,12 @@ export default function TrainDashboard() {
     let cancelled = false;
 
     Promise.all([
-      fetchAccountCreatedAt(),
+      fetchFirstSessionDate(),
       fetchSplitDays(),
       fetchLastSession(),
-    ]).then(([createdAt, days, lastSession]) => {
+    ]).then(([firstSession, days, lastSession]) => {
       if (cancelled) return;
-      setState({ status: "ready", data: { createdAt, days, lastSession } });
+      setState({ status: "ready", data: { firstSession, days, lastSession } });
     });
 
     return () => {
@@ -67,10 +68,15 @@ export default function TrainDashboard() {
   const data = state.status === "ready" ? state.data : null;
   const days = data?.days ?? [];
 
+  // Cycle through the split from the first logged session. With nothing logged
+  // yet (firstSession null) we default to day 1 (index 0) rather than anchoring
+  // on an arbitrary date.
   const todayIndex =
-    days.length > 0
-      ? todayIndexInSplit(data?.createdAt ?? new Date(), new Date(), days.length)
-      : -1;
+    days.length === 0
+      ? -1
+      : data?.firstSession
+        ? todayIndexInSplit(data.firstSession, new Date(), days.length)
+        : 0;
   const todayDay = todayIndex >= 0 ? days[todayIndex] : null;
 
   return (

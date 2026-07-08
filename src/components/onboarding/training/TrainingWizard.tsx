@@ -219,7 +219,7 @@ export default function TrainingWizard({ initialStep }: { initialStep: number })
             type="button"
             data-no-vitality
             onClick={handleBack}
-            className="text-sm text-muted transition-colors hover:text-white"
+            className="text-sm text-muted transition-colors hover:text-fg"
           >
             ← back
           </button>

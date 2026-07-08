@@ -17,6 +17,17 @@
   --color-wine: #7c2d12;
   --color-red: #ef4444;
 
+  /* cool (deload) accent — the mint family's blue counterpart. The session
+     screen's deload toggle remaps the --color-mint tokens onto these, so the
+     whole subtree shifts mint → blue without hardcoding hex at the call site. */
+  --color-cool: #60a5fa;
+  --color-cool-hover: #3b82f6;
+  --color-cool-ink: #0a1a2e;
+  --color-cool-glow: rgba(96, 165, 250, 0.4);
+  --color-cool-soft: #bfdbfe;
+  --color-cool-deep: #1e3a5f;
+  --color-cool-tint: rgba(96, 165, 250, 0.08);
+
   --danger: #ef4444;
 
   --color-muted: rgba(255, 255, 255, 0.5);
@@ -50,6 +61,14 @@
   --color-amber-warm: var(--color-amber-warm);
   --color-wine: var(--color-wine);
   --color-red: var(--color-red);
+
+  --color-cool: var(--color-cool);
+  --color-cool-hover: var(--color-cool-hover);
+  --color-cool-ink: var(--color-cool-ink);
+  --color-cool-glow: var(--color-cool-glow);
+  --color-cool-soft: var(--color-cool-soft);
+  --color-cool-deep: var(--color-cool-deep);
+  --color-cool-tint: var(--color-cool-tint);
 
   --color-muted: var(--color-muted);
   --color-muted-strong: var(--color-muted-strong);

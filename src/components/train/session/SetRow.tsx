@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CheckIcon } from "@/components/train/session/icons";
+import { UndoIcon } from "@/components/train/session/icons";
 import { formatWeight, toRoman } from "@/lib/train/overload";
 
 export interface SetRowProps {
@@ -19,10 +19,11 @@ export interface SetRowProps {
 const RPE_CHIPS = [6, 7, 8, 9, 10];
 
 /**
- * One prescribed set. Collapsed it shows the suggested load and a "HIT IT →"
- * pill; tapping expands an inline overlay with weight/reps fields, an optional
- * RPE selector, and "LOG IT". Once logged it collapses to the actual numbers in
- * mint with a checkmark, and stays tappable to correct a mistake.
+ * One prescribed set, rendered as a full-width card. Unlogged it shows the
+ * suggested load in an outlined card with a "hit it →" cue; tapping expands an
+ * inline overlay with weight/reps fields, an optional RPE selector, and "LOG
+ * IT". Once logged the card fills mint with the actual numbers, a "done" label,
+ * and an undo glyph — and stays tappable to correct a mistake.
  */
 export default function SetRow({
   index,
@@ -60,68 +61,84 @@ export default function SetRow({
     }
   };
 
-  // ---------- logged (collapsed, mint) ----------
+  // ---------- logged (collapsed, filled mint card) ----------
   if (logged && !open) {
     return (
       <button
         type="button"
         data-no-vitality
         onClick={() => setOpen(true)}
-        className="flex w-full items-center gap-3 rounded-md border-0 bg-transparent px-1 py-2 text-left"
+        className="flex w-full items-center gap-4 rounded-2xl border-0 px-5 py-4 text-left transition-transform active:scale-[0.99]"
+        style={{ background: "var(--color-mint)", color: "var(--color-mint-ink)" }}
         aria-label={`Edit set ${roman}`}
       >
-        <span className="mono w-6 shrink-0 text-[0.72rem] lowercase text-muted">
+        <span
+          className="serif-italic w-5 shrink-0 text-base lowercase"
+          data-no-vitality
+          style={{ opacity: 0.8 }}
+        >
           {roman}
         </span>
-        <span
-          className="mono flex-1 text-sm tabular-nums"
-          style={{ color: "var(--color-mint)" }}
-        >
-          {formatWeight(logged.weight)}kg × {logged.reps}
+        <span className="flex flex-1 items-baseline gap-1">
+          <span className="text-2xl font-semibold tabular-nums leading-none">
+            {formatWeight(logged.weight)}
+          </span>
+          <span className="serif-italic text-xs" data-no-vitality style={{ opacity: 0.75 }}>
+            kg
+          </span>
+          <span className="ml-1.5 text-lg leading-none">× {logged.reps}</span>
         </span>
-        <span
-          className="inline-flex h-5 w-5 items-center justify-center rounded-full"
-          style={{ background: "var(--color-mint)", color: "var(--color-mint-ink)" }}
-          aria-hidden
-        >
-          <CheckIcon size={13} strokeWidth={2.4} />
+        <span className="serif-italic text-sm" data-no-vitality>
+          done
         </span>
+        <UndoIcon size={16} style={{ opacity: 0.75 }} />
       </button>
     );
   }
 
-  // ---------- unlogged, collapsed ----------
+  // ---------- unlogged, collapsed (outlined card) ----------
   if (!open) {
     return (
-      <div className="flex w-full items-center gap-3 px-1 py-2">
-        <span className="mono w-6 shrink-0 text-[0.72rem] lowercase text-muted">
+      <button
+        type="button"
+        data-no-vitality
+        onClick={() => setOpen(true)}
+        className="flex w-full items-center gap-4 rounded-2xl px-5 py-4 text-left transition-colors hover:border-mint"
+        style={{
+          border: "1px solid var(--color-border-strong)",
+          background: "transparent",
+        }}
+        aria-label={`Log set ${roman}`}
+      >
+        <span
+          className="serif-italic w-5 shrink-0 text-base lowercase text-muted"
+          data-no-vitality
+        >
           {roman}
         </span>
-        <span className="mono flex-1 text-sm tabular-nums text-muted-strong">
-          {suggestedWeight != null ? `${formatWeight(suggestedWeight)}kg` : "—"} ×{" "}
-          {prescribedReps}
+        <span className="flex flex-1 items-baseline gap-1 text-muted-strong">
+          <span className="text-2xl font-semibold tabular-nums leading-none">
+            {suggestedWeight != null ? formatWeight(suggestedWeight) : "—"}
+          </span>
+          <span className="serif-italic text-xs text-muted" data-no-vitality>
+            kg
+          </span>
+          <span className="ml-1.5 text-lg leading-none">× {prescribedReps}</span>
         </span>
-        <button
-          type="button"
-          data-no-vitality
-          onClick={() => setOpen(true)}
-          className="mono shrink-0 rounded-pill px-3 py-1 text-[0.6rem] font-semibold uppercase tracking-[0.12em] transition-colors"
-          style={{
-            border: "1px solid var(--color-border-strong)",
-            background: "transparent",
-            color: "var(--color-mint)",
-          }}
+        <span
+          className="mono shrink-0 text-[0.62rem] font-semibold uppercase tracking-[0.12em]"
+          style={{ color: "var(--color-mint)" }}
         >
           Hit it →
-        </button>
-      </div>
+        </span>
+      </button>
     );
   }
 
   // ---------- open: inline input overlay ----------
   return (
     <div
-      className="rounded-lg px-2 py-3"
+      className="rounded-2xl px-4 py-4"
       style={{
         border: "1px solid var(--color-mint)",
         background: "rgba(110,231,183,0.06)",

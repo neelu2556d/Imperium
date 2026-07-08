@@ -8,6 +8,7 @@ import {
   InfoIcon,
   MinusIcon,
   PlusIcon,
+  StarIcon,
   SwapIcon,
   TuneIcon,
 } from "@/components/train/session/icons";
@@ -62,6 +63,7 @@ export default function ExerciseCard({
 }: ExerciseCardProps) {
   const [showInfo, setShowInfo] = useState(false);
   const [showTune, setShowTune] = useState(false);
+  const [favorite, setFavorite] = useState(false);
 
   const suggestion = suggestWeight({
     last: exercise.last,
@@ -69,12 +71,16 @@ export default function ExerciseCard({
     deload,
   });
 
-  const actionBtn =
-    "flex h-8 w-8 items-center justify-center rounded-full border text-muted transition-colors hover:text-fg";
+  // Labelled action pills ("⇄ swap", "↗ history", "≡ tune").
+  const pillBtn =
+    "inline-flex items-center gap-1.5 rounded-pill border px-3 py-1.5 text-muted transition-colors hover:border-mint hover:text-fg";
   const actionStyle = {
     borderColor: "var(--color-border-strong)",
     background: "transparent",
   } as const;
+  // The tune stepper still uses the compact round button.
+  const stepBtn =
+    "flex h-7 w-7 items-center justify-center rounded-full border text-muted";
 
   return (
     <section
@@ -94,75 +100,91 @@ export default function ExerciseCard({
       </div>
 
       <div className="card p-4" data-no-vitality>
-        {/* header row: name + info, actions */}
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <h3
-                className="truncate text-base font-medium"
-                data-no-vitality
-                style={{ fontFamily: "var(--font-sans)", fontStyle: "normal" }}
-              >
-                {exercise.name}
-              </h3>
-              <button
-                type="button"
-                data-no-vitality
-                aria-label={`About ${exercise.name}`}
-                aria-expanded={showInfo}
-                onClick={() => setShowInfo((v) => !v)}
-                className="shrink-0 border-0 bg-transparent p-0 text-muted transition-colors hover:text-fg"
-              >
-                <InfoIcon size={16} />
-              </button>
-            </div>
-            <p className="mono mt-1 text-[0.62rem] uppercase tracking-[0.12em] text-muted">
-              Tier {tierNumber(exercise.tier)} ·{" "}
-              {exercise.lastWeight != null
-                ? `Last ${formatWeight(exercise.lastWeight)}kg`
-                : "New lift"}
-            </p>
-          </div>
+        {/* header: name + info */}
+        <div className="flex items-center gap-2">
+          <h3 className="serif-italic truncate text-2xl leading-tight" data-no-vitality>
+            {exercise.name}
+          </h3>
+          <button
+            type="button"
+            data-no-vitality
+            aria-label={`About ${exercise.name}`}
+            aria-expanded={showInfo}
+            onClick={() => setShowInfo((v) => !v)}
+            className="shrink-0 border-0 bg-transparent p-0 text-muted transition-colors hover:text-fg"
+          >
+            <InfoIcon size={16} />
+          </button>
+        </div>
+        <p className="mono mt-1.5 text-[0.62rem] uppercase tracking-[0.14em] text-muted">
+          Tier {tierNumber(exercise.tier)} · {setCount} × {exercise.prescribedReps}
+          {exercise.lastWeight != null
+            ? ` · Last ${formatWeight(exercise.lastWeight)}kg`
+            : " · New lift"}
+        </p>
 
-          <div className="flex shrink-0 items-center gap-1.5">
-            <button
-              type="button"
-              data-no-vitality
-              aria-label="Swap exercise"
-              onClick={onSwap}
-              className={actionBtn}
-              style={actionStyle}
-            >
-              <SwapIcon size={16} />
-            </button>
-            <button
-              type="button"
-              data-no-vitality
-              aria-label="Exercise history"
-              onClick={onHistory}
-              className={actionBtn}
-              style={actionStyle}
-            >
-              <HistoryIcon size={16} />
-            </button>
-            <button
-              type="button"
-              data-no-vitality
-              aria-label="Adjust sets"
-              aria-expanded={showTune}
-              onClick={() => setShowTune((v) => !v)}
-              className={actionBtn}
-              style={{
-                ...actionStyle,
-                borderColor: showTune
-                  ? "var(--color-mint)"
-                  : "var(--color-border-strong)",
-                color: showTune ? "var(--color-mint)" : "var(--color-muted)",
-              }}
-            >
-              <TuneIcon size={16} />
-            </button>
-          </div>
+        {/* action pills */}
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            data-no-vitality
+            aria-label="Swap exercise"
+            onClick={onSwap}
+            className={pillBtn}
+            style={actionStyle}
+          >
+            <SwapIcon size={14} />
+            <span className="serif-italic text-sm" data-no-vitality>
+              swap
+            </span>
+          </button>
+          <button
+            type="button"
+            data-no-vitality
+            aria-label="Exercise history"
+            onClick={onHistory}
+            className={pillBtn}
+            style={actionStyle}
+          >
+            <HistoryIcon size={14} />
+            <span className="serif-italic text-sm" data-no-vitality>
+              history
+            </span>
+          </button>
+          <button
+            type="button"
+            data-no-vitality
+            aria-label="Adjust sets"
+            aria-expanded={showTune}
+            onClick={() => setShowTune((v) => !v)}
+            className={pillBtn}
+            style={{
+              ...actionStyle,
+              borderColor: showTune
+                ? "var(--color-mint)"
+                : "var(--color-border-strong)",
+              color: showTune ? "var(--color-mint)" : "var(--color-muted)",
+            }}
+          >
+            <TuneIcon size={14} />
+            <span className="serif-italic text-sm" data-no-vitality>
+              tune
+            </span>
+          </button>
+          <button
+            type="button"
+            data-no-vitality
+            aria-label={favorite ? "Unfavorite exercise" : "Favorite exercise"}
+            aria-pressed={favorite}
+            onClick={() => setFavorite((v) => !v)}
+            className="ml-auto flex h-8 w-8 items-center justify-center rounded-full border transition-colors hover:border-mint"
+            style={{
+              ...actionStyle,
+              color: favorite ? "var(--color-mint)" : "var(--color-muted)",
+            }}
+          >
+            <StarIcon size={15} style={favorite ? undefined : { fill: "none", stroke: "currentColor", strokeWidth: 1.6 }} />
+          </button>
         </div>
 
         {/* info: form cue */}
@@ -191,7 +213,7 @@ export default function ExerciseCard({
                 data-no-vitality
                 aria-label="Remove a set"
                 onClick={() => onSetCountChange(Math.max(1, setCount - 1))}
-                className="flex h-7 w-7 items-center justify-center rounded-full border text-muted"
+                className={stepBtn}
                 style={actionStyle}
               >
                 <MinusIcon size={14} />
@@ -204,7 +226,7 @@ export default function ExerciseCard({
                 data-no-vitality
                 aria-label="Add a set"
                 onClick={() => onSetCountChange(Math.min(12, setCount + 1))}
-                className="flex h-7 w-7 items-center justify-center rounded-full border text-muted"
+                className={stepBtn}
                 style={actionStyle}
               >
                 <PlusIcon size={14} />
@@ -214,7 +236,7 @@ export default function ExerciseCard({
         )}
 
         {/* set rows */}
-        <div className="mt-3 flex flex-col">
+        <div className="mt-4 flex flex-col gap-2.5">
           {Array.from({ length: setCount }, (_, i) => {
             const setNumber = i + 1;
             const done = logged.get(setNumber) ?? null;

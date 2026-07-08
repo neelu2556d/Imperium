@@ -96,6 +96,16 @@ export function CheckIcon(props: IconProps) {
   );
 }
 
+/** Undo (↺) — counter-clockwise arrow, re-opens a logged set to edit it. */
+export function UndoIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M3 8h9a6 6 0 1 1 0 12H7" />
+      <path d="M3 8l4-4M3 8l4 4" />
+    </svg>
+  );
+}
+
 /** Gear for the top-right settings affordance. */
 export function GearIcon(props: IconProps) {
   return (

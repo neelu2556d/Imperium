@@ -11,7 +11,7 @@ import {
   FlameIcon,
   WaterDropIcon,
 } from "@/components/home/icons";
-import { formatToday, getGreeting } from "@/lib/home/datetime";
+import { formatTime, formatToday, getGreeting } from "@/lib/home/datetime";
 import {
   fetchFuelToday,
   fetchSleepSeries,
@@ -43,12 +43,19 @@ const MINT = "var(--color-mint)";
 export default function HomeDashboard() {
   const [state, setState] = useState<LoadState>({ status: "loading" });
 
-  // Clock-derived strings are computed in render from the local `new Date()`.
-  // On the server this uses the server's timezone; the client corrects it on
-  // hydration, so both elements are marked suppressHydrationWarning.
-  const now = new Date();
+  // Live wall clock. Seeded on first render (SSR uses the server's timezone; the
+  // client corrects on hydration — hence suppressHydrationWarning below) and
+  // ticked every second so the greeting rolls morning→afternoon→evening and the
+  // time stays current without a reload.
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
   const greetingLead = getGreeting(now.getHours());
   const dateStr = formatToday(now);
+  const timeStr = formatTime(now);
 
   useEffect(() => {
     let cancelled = false;
@@ -99,16 +106,9 @@ export default function HomeDashboard() {
       {/* ---------- greeting ---------- */}
       <header className="mb-6 flex items-center gap-4 md:mb-8 md:gap-6">
         <ImperiumGem
-          size={72}
+          size={84}
           showChevron={false}
           style={{ flexShrink: 0 }}
-          className="md:hidden"
-        />
-        <ImperiumGem
-          size={96}
-          showChevron={false}
-          style={{ flexShrink: 0 }}
-          className="hidden md:flex"
         />
         <div className="min-w-0">
           <h1
@@ -123,7 +123,7 @@ export default function HomeDashboard() {
             className="mono mt-1.5 text-[0.7rem] uppercase tracking-[0.18em] text-muted md:text-xs"
             suppressHydrationWarning
           >
-            {dateStr}
+            {dateStr} · {timeStr}
           </p>
         </div>
       </header>

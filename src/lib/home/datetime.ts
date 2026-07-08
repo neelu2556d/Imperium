@@ -40,3 +40,12 @@ export function getGreeting(hour: number): string {
 export function formatToday(date: Date): string {
   return `${DAY_NAMES[date.getDay()]}, ${MONTH_NAMES[date.getMonth()]} ${date.getDate()}`;
 }
+
+/** Formats the wall-clock time as "9:23 AM" for the greeting sub-header. */
+export function formatTime(date: Date): string {
+  const hour24 = date.getHours();
+  const minute = date.getMinutes();
+  const period = hour24 < 12 ? "AM" : "PM";
+  const hour12 = hour24 % 12 === 0 ? 12 : hour24 % 12;
+  return `${hour12}:${String(minute).padStart(2, "0")} ${period}`;
+}

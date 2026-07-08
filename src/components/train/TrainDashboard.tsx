@@ -42,6 +42,9 @@ function formatSessionDate(iso: string): string {
 export default function TrainDashboard() {
   const router = useRouter();
   const [state, setState] = useState<LoadState>({ status: "loading" });
+  // Which split day the user has chosen to train today. `null` means "follow
+  // the schedule" — we fall back to the auto-cycled day below.
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
 
   // The date sub-header reflects the user's wall clock; the server renders its
   // own timezone and the client corrects on hydration (suppressed below).
@@ -71,13 +74,19 @@ export default function TrainDashboard() {
   // Cycle through the split from the first logged session. With nothing logged
   // yet (firstSession null) we default to day 1 (index 0) rather than anchoring
   // on an arbitrary date.
-  const todayIndex =
+  const scheduledIndex =
     days.length === 0
       ? -1
       : data?.firstSession
         ? todayIndexInSplit(data.firstSession, new Date(), days.length)
         : 0;
-  const todayDay = todayIndex >= 0 ? days[todayIndex] : null;
+
+  // The user's free pick wins; otherwise we highlight the scheduled day.
+  const activeIndex =
+    selectedIndex !== null && selectedIndex < days.length
+      ? selectedIndex
+      : scheduledIndex;
+  const activeDay = activeIndex >= 0 ? days[activeIndex] : null;
 
   return (
     <div className="w-full px-5 pb-28 pt-8 md:px-8 lg:px-12">
@@ -93,6 +102,11 @@ export default function TrainDashboard() {
           >
             {dateStr}
           </p>
+          {!loading && days.length > 0 && (
+            <p className="mt-2 text-sm text-muted">
+              Tap any day to pick what you&apos;re training today.
+            </p>
+          )}
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
@@ -129,7 +143,9 @@ export default function TrainDashboard() {
               key={day.id}
               index={i + 1}
               day={day}
-              isToday={i === todayIndex}
+              isActive={i === activeIndex}
+              isScheduled={i === scheduledIndex}
+              onSelect={() => setSelectedIndex(i)}
             />
           ))}
         </div>
@@ -192,16 +208,16 @@ export default function TrainDashboard() {
       </section>
 
       {/* ---------- floating "Log today" ---------- */}
-      {todayDay && !todayDay.isRest && (
+      {activeDay && !activeDay.isRest && (
         <button
           type="button"
           data-no-vitality
-          onClick={() => router.push(`/train/session/${todayDay.id}`)}
+          onClick={() => router.push(`/train/session/${activeDay.id}`)}
           className="btn-primary fixed bottom-24 right-5 z-40 shadow-glass md:right-8"
           style={{ paddingInline: "1.25rem" }}
         >
           <PlusIcon size={16} />
-          Log today
+          Log {activeDay.name}
         </button>
       )}
     </div>

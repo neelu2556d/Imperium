@@ -9,32 +9,65 @@ interface DayCardProps {
   /** 1-based position in the split, shown as a zero-padded index ("01"). */
   index: number;
   day: TrainSplitDay;
-  /** True for the card the split lands on today. */
-  isToday: boolean;
+  /** True for the day the user has chosen to train today. */
+  isActive: boolean;
+  /** True for the day the split naturally lands on today. */
+  isScheduled: boolean;
+  /** Pick this day as today's session. */
+  onSelect: () => void;
 }
 
 const MINT = "var(--color-mint)";
 
 /**
- * One day in the horizontally-scrolling split row. Collapsed it shows just the
- * day name and its intensity badge; expanded (the default for today) it also
- * reveals the exercise count, and — on today's card — a "lock in" prompt that
- * starts the session. Rest days never expand past their REST badge.
+ * One day in the horizontally-scrolling split row. Tapping the card picks it as
+ * today's session. Collapsed it shows just the day name and its intensity badge;
+ * the active card expands to reveal the exercise count and a "lock in" prompt
+ * that starts the session. Rest days never expand past their REST badge.
  */
-export default function DayCard({ index, day, isToday }: DayCardProps) {
+export default function DayCard({
+  index,
+  day,
+  isActive,
+  isScheduled,
+  onSelect,
+}: DayCardProps) {
   const router = useRouter();
-  const [expanded, setExpanded] = useState(isToday && !day.isRest);
+  const [expanded, setExpanded] = useState(isActive && !day.isRest);
+
+  // Auto-expand whenever this card becomes the active pick. Adjusting state
+  // during render (rather than in an effect) avoids a cascading re-render.
+  const [wasActive, setWasActive] = useState(isActive);
+  if (isActive !== wasActive) {
+    setWasActive(isActive);
+    if (isActive && !day.isRest) setExpanded(true);
+  }
 
   const startSession = () => router.push(`/train/session/${day.id}`);
 
-  // Today's card gets a mint ring; rest-day highlight rides the same flag.
-  const cardStyle: CSSProperties = isToday
+  // The active card gets a mint ring; the scheduled day (when not active) gets a
+  // fainter outline so the default is still visible.
+  const cardStyle: CSSProperties = isActive
     ? { boxShadow: "0 0 0 1px var(--color-mint), 0 0 24px var(--color-mint-glow)" }
-    : {};
+    : isScheduled
+      ? { boxShadow: "0 0 0 1px var(--color-border-strong)" }
+      : {};
 
   return (
     <div
-      className="card relative flex w-40 shrink-0 flex-col p-3.5"
+      role="button"
+      tabIndex={0}
+      data-no-vitality
+      aria-pressed={isActive}
+      aria-label={`Train ${day.name} today`}
+      onClick={onSelect}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onSelect();
+        }
+      }}
+      className="card relative flex w-40 shrink-0 cursor-pointer flex-col p-3.5 text-left transition-colors hover:border-mint"
       style={{ minHeight: 200, ...cardStyle }}
     >
       {/* header: index + Today pill (left), collapse chevron (right) */}
@@ -43,13 +76,19 @@ export default function DayCard({ index, day, isToday }: DayCardProps) {
           <span className="mono text-[0.7rem] tracking-widest text-muted">
             {String(index).padStart(2, "0")}
           </span>
-          {isToday && (
+          {isActive ? (
             <span
               className="mono rounded-pill px-2 py-0.5 text-[0.58rem] font-semibold uppercase tracking-[0.14em]"
               style={{ background: MINT, color: "var(--color-mint-ink)" }}
             >
               Today
             </span>
+          ) : (
+            isScheduled && (
+              <span className="mono rounded-pill border border-border-strong px-2 py-0.5 text-[0.58rem] font-semibold uppercase tracking-[0.14em] text-muted">
+                Scheduled
+              </span>
+            )
           )}
         </div>
 
@@ -59,7 +98,10 @@ export default function DayCard({ index, day, isToday }: DayCardProps) {
             data-no-vitality
             aria-label={expanded ? "Collapse day" : "Expand day"}
             aria-expanded={expanded}
-            onClick={() => setExpanded((v) => !v)}
+            onClick={(e) => {
+              e.stopPropagation();
+              setExpanded((v) => !v);
+            }}
             className="-mr-1 -mt-1 flex h-7 w-7 items-center justify-center rounded-full text-muted transition-colors hover:text-fg"
             style={{ background: "transparent", border: "none", padding: 0 }}
           >
@@ -94,12 +136,15 @@ export default function DayCard({ index, day, isToday }: DayCardProps) {
         )}
       </div>
 
-      {/* today's lock-in prompt, pinned to the bottom */}
-      {isToday && !day.isRest && expanded && (
+      {/* active day's lock-in prompt, pinned to the bottom */}
+      {isActive && !day.isRest && expanded && (
         <button
           type="button"
           data-no-vitality
-          onClick={startSession}
+          onClick={(e) => {
+            e.stopPropagation();
+            startSession();
+          }}
           className="mono mt-2 flex items-center gap-1 text-left text-[0.62rem] font-medium uppercase tracking-[0.1em] transition-colors"
           style={{
             color: MINT,

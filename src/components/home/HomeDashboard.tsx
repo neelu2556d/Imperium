@@ -4,15 +4,15 @@ import { useEffect, useState, type CSSProperties } from "react";
 import ImperiumGem from "@/components/welcome/ImperiumGem";
 import BentoCard from "@/components/home/BentoCard";
 import Sparkline from "@/components/home/Sparkline";
-import MacroRing from "@/components/home/MacroRing";
 import CircuitPattern from "@/components/home/CircuitPattern";
 import {
+  ActivityIcon,
   DumbbellIcon,
   FlameIcon,
-  WaterDropIcon,
 } from "@/components/home/icons";
 import { formatTime, formatToday, getGreeting } from "@/lib/home/datetime";
 import {
+  fetchFuelSparkline,
   fetchFuelToday,
   fetchSleepSeries,
   fetchTodayTrainingDay,
@@ -31,6 +31,7 @@ interface DashboardData {
   sleep: SleepData;
   water: number | null;
   fuel: FuelData;
+  fuelSeries: number[];
 }
 
 type LoadState =
@@ -67,11 +68,12 @@ export default function HomeDashboard() {
       fetchSleepSeries(),
       fetchWaterToday(),
       fetchFuelToday(),
-    ]).then(([name, today, volumes, sleep, water, fuel]) => {
+      fetchFuelSparkline(),
+    ]).then(([name, today, volumes, sleep, water, fuel, fuelSeries]) => {
       if (cancelled) return;
       setState({
         status: "ready",
-        data: { name, today, volumes, sleep, water, fuel },
+        data: { name, today, volumes, sleep, water, fuel, fuelSeries },
       });
     });
 
@@ -86,20 +88,9 @@ export default function HomeDashboard() {
   // ----- greeting -----
   const name = data?.name ?? null;
 
-  // ----- card sub-labels / summaries -----
-  const trainSub = data?.today
-    ? data.today.isRest
-      ? "REST DAY"
-      : `${data.today.name.toUpperCase()} DAY`
-    : "SET YOUR SPLIT";
-
+  // ----- card summaries (revealed on long-press) -----
   const sleepLatest = data?.sleep.latest ?? null;
-  const water = data?.water ?? null;
-
   const fuel = data?.fuel;
-  const fuelKcal = fuel?.hasData
-    ? `${Math.round(fuel.calories)} KCAL`
-    : "LOG A MEAL";
 
   return (
     <div className="w-full px-5 pb-10 pt-8 md:px-8 lg:px-12 lg:pt-10">
@@ -136,7 +127,7 @@ export default function HomeDashboard() {
           index="01"
           icon={<DumbbellIcon size={18} />}
           label="Train"
-          subLabel={<span style={{ color: MINT }}>{trainSub}</span>}
+          feature
           href="/train"
           ariaLabel="Open Train"
           summary={
@@ -156,7 +147,7 @@ export default function HomeDashboard() {
                 values={data?.volumes ?? []}
                 color={MINT}
                 width="100%"
-                height={56}
+                height={72}
               />
             </div>
           )}
@@ -166,9 +157,9 @@ export default function HomeDashboard() {
         <BentoCard
           className="area-vitals"
           index="04"
-          icon={<WaterDropIcon size={18} />}
+          icon={<ActivityIcon size={18} />}
           label="Vitals"
-          subLabel={<span className="text-muted-strong">SLEEP · H₂O</span>}
+          feature
           href="/vitals"
           ariaLabel="Open Vitals"
           summary={
@@ -181,23 +172,18 @@ export default function HomeDashboard() {
           {loading ? (
             <Skeleton />
           ) : (
-            <div className="flex w-full flex-col gap-2">
+            <div className="w-full">
               <Sparkline
                 values={data?.sleep.series ?? []}
-                color={data?.sleep.belowGoal ? AMBER : "rgba(255,255,255,0.75)"}
+                color={data?.sleep.belowGoal ? AMBER : "rgba(255,255,255,0.8)"}
                 glowColor={
                   data?.sleep.belowGoal
                     ? "rgba(245,158,11,0.45)"
                     : "rgba(255,255,255,0.4)"
                 }
                 width="100%"
-                height={40}
+                height={56}
               />
-              <p className="mono text-[0.62rem] text-muted">
-                {sleepLatest != null ? `${sleepLatest.toFixed(1)}h` : "—"}
-                {" · "}
-                {water != null ? `${water.toFixed(1)}L` : "—"}
-              </p>
             </div>
           )}
         </BentoCard>
@@ -240,7 +226,7 @@ export default function HomeDashboard() {
           index="02"
           icon={<FlameIcon size={18} />}
           label="Fuel"
-          subLabel={<span style={{ color: MINT }}>{fuelKcal}</span>}
+          feature
           href="/fuel"
           ariaLabel="Open Fuel"
           summary={
@@ -253,23 +239,13 @@ export default function HomeDashboard() {
           {loading ? (
             <Skeleton />
           ) : (
-            <div className="flex w-full flex-col items-center gap-4 md:items-start">
-              <MacroRing
-                calories={fuel?.calories ?? 0}
-                goalCalories={fuel?.goalCalories ?? 2200}
-                size={64}
+            <div className="w-full">
+              <Sparkline
+                values={data?.fuelSeries ?? []}
+                color={MINT}
+                width="100%"
+                height={72}
               />
-              <div className="flex flex-col gap-0.5 text-[0.72rem] leading-tight">
-                <span style={{ color: MINT }}>
-                  {Math.round(fuel?.protein ?? 0)}g protein
-                </span>
-                <span style={{ color: AMBER }}>
-                  {Math.round(fuel?.carbs ?? 0)}g carbs
-                </span>
-                <span className="text-muted">
-                  {Math.round(fuel?.fat ?? 0)}g fat
-                </span>
-              </div>
             </div>
           )}
         </BentoCard>

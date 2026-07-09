@@ -8,6 +8,11 @@ interface SparklineProps {
   /** SVG width — a number (px) or a CSS length like "100%" to fill its cell. */
   width?: number | string;
   height?: number;
+  /**
+   * Animate the line: a one-off draw-on, a travelling pulse of light, and a
+   * breathing end-dot. Defaults on; honours prefers-reduced-motion via CSS.
+   */
+  animate?: boolean;
 }
 
 const VB_W = 100;
@@ -16,8 +21,9 @@ const PAD_Y = 5;
 
 /**
  * Axis-less mini line chart for the bento cards: a thin curve with a single
- * glowing dot on the most recent point. With no data it draws a flat dashed
- * line so the card still reads as "a chart, waiting for data".
+ * glowing dot on the most recent point, and (when `animate`) a light pulse that
+ * travels along it. With no data it draws a flat dashed line so the card still
+ * reads as "a chart, waiting for data".
  */
 export default function Sparkline({
   values,
@@ -25,6 +31,7 @@ export default function Sparkline({
   glowColor = "var(--color-mint-glow)",
   width = 120,
   height = 40,
+  animate = true,
 }: SparklineProps) {
   if (values.length < 2) {
     return (
@@ -44,6 +51,7 @@ export default function Sparkline({
           strokeWidth="1.4"
           strokeDasharray="3 4"
           strokeLinecap="round"
+          className={animate ? "spark-empty" : undefined}
         />
       </svg>
     );
@@ -74,6 +82,7 @@ export default function Sparkline({
       aria-hidden="true"
       style={{ overflow: "visible" }}
     >
+      {/* base line — draws itself on once */}
       <path
         d={path}
         fill="none"
@@ -82,9 +91,33 @@ export default function Sparkline({
         strokeLinecap="round"
         strokeLinejoin="round"
         vectorEffect="non-scaling-stroke"
+        pathLength={1}
+        className={animate ? "spark-line" : undefined}
       />
+      {/* travelling pulse of brighter light riding the same path */}
+      {animate && (
+        <path
+          d={path}
+          fill="none"
+          stroke={color}
+          strokeWidth="2.6"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          vectorEffect="non-scaling-stroke"
+          pathLength={1}
+          className="spark-flow"
+          style={{ filter: `drop-shadow(0 0 3px ${glowColor})` }}
+        />
+      )}
       {/* soft glow halo */}
-      <circle cx={lastX} cy={lastY} r="4.5" fill={glowColor} opacity="0.9" />
+      <circle
+        cx={lastX}
+        cy={lastY}
+        r="4.5"
+        fill={glowColor}
+        opacity="0.9"
+        className={animate ? "spark-dot-halo" : undefined}
+      />
       {/* solid dot */}
       <circle cx={lastX} cy={lastY} r="2.2" fill={color} />
     </svg>

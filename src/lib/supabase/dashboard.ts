@@ -86,6 +86,29 @@ export async function fetchTrainSparkline(): Promise<number[]> {
   }
 }
 
+/** Last 7 days of total logged calories, oldest → newest — the Fuel card line. */
+export async function fetchFuelSparkline(): Promise<number[]> {
+  try {
+    const userId = await ensureAnonymousSession();
+    const { data, error } = await supabase
+      .from("food_logs")
+      .select("calories, log_date")
+      .eq("user_id", userId)
+      .order("log_date", { ascending: true });
+    if (error) throw error;
+
+    const byDate = new Map<string, number>();
+    for (const row of data ?? []) {
+      const key = String(row.log_date);
+      byDate.set(key, (byDate.get(key) ?? 0) + (Number(row.calories) || 0));
+    }
+    const series = [...byDate.keys()].sort().map((k) => byDate.get(k)!);
+    return series.slice(-7);
+  } catch {
+    return [];
+  }
+}
+
 export interface SleepData {
   /** Last 7 nights' hours, oldest → newest. */
   series: number[];

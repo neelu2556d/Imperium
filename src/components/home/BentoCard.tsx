@@ -12,7 +12,12 @@ interface BentoCardProps {
   /** Section label shown bottom-left in small-caps italic, e.g. "TRAIN". */
   label: string;
   /** Contextual sub-label next to the section name (already colored). */
-  subLabel: ReactNode;
+  subLabel?: ReactNode;
+  /**
+   * "Feature" cards (Train/Vitals/Fuel) drop the sub-label and show a larger,
+   * brighter serif label so the animated line reads as the card's hero.
+   */
+  feature?: boolean;
   /** Card body / mini-viz. */
   children: ReactNode;
   /** Route to navigate to on tap. */
@@ -39,6 +44,7 @@ export default function BentoCard({
   icon,
   label,
   subLabel,
+  feature = false,
   children,
   href,
   ariaLabel,
@@ -118,10 +124,18 @@ export default function BentoCard({
       {/* footer: label + sublabel + arrow */}
       <div className="flex items-end justify-between">
         <div className="flex items-baseline gap-2">
-          <span className="serif-italic text-xs uppercase tracking-wider text-muted">
+          <span
+            className={
+              feature
+                ? "serif-italic text-lg uppercase tracking-wide text-muted-strong md:text-xl"
+                : "serif-italic text-xs uppercase tracking-wider text-muted"
+            }
+          >
             {label}
           </span>
-          <span className="text-[0.7rem] font-medium">{subLabel}</span>
+          {!feature && subLabel != null && (
+            <span className="text-[0.7rem] font-medium">{subLabel}</span>
+          )}
         </div>
         <span className="text-muted transition-colors">
           <ArrowIcon size={16} />

@@ -111,21 +111,30 @@ export async function fetchSplitDays(): Promise<TrainSplitDay[]> {
   }
 }
 
-/** Maps a set of exercise ids to their display names. */
+/**
+ * Maps a set of exercise ids to their display names. Decorative (drives the
+ * top-lift label only), so it swallows its own errors and returns whatever it
+ * resolved rather than throwing — a failed name lookup must not erase the whole
+ * last-session summary.
+ */
 async function resolveExerciseNames(
   exerciseIds: string[]
 ): Promise<Map<string, string>> {
   const names = new Map<string, string>();
   if (exerciseIds.length === 0) return names;
 
-  const { data, error } = await supabase
-    .from("exercises")
-    .select("id, name")
-    .in("id", exerciseIds);
-  if (error) throw error;
+  try {
+    const { data, error } = await supabase
+      .from("exercises")
+      .select("id, name")
+      .in("id", exerciseIds);
+    if (error) throw error;
 
-  for (const row of data ?? []) {
-    names.set(row.id as string, row.name as string);
+    for (const row of data ?? []) {
+      names.set(row.id as string, row.name as string);
+    }
+  } catch {
+    // leave `names` as whatever we had (empty) — the caller falls back to "Lift".
   }
   return names;
 }
@@ -134,6 +143,12 @@ async function resolveExerciseNames(
  * The split day a session belongs to, inferred from any of its exercises via
  * day_exercises → training_split. Null when the exercises aren't mapped to a
  * day (e.g. logged ad-hoc, or picks cleared since).
+ *
+ * This is a *decorative* lookup — it only supplies the day-name label. It must
+ * never be able to sink the whole "last session" summary, so it swallows its own
+ * errors (a stale PostgREST embed relationship, say) and returns null rather
+ * than throwing. Before this was fatal: a logged session simply vanished from
+ * the dashboard when the embed failed.
  */
 async function resolveDayName(
   userId: string,
@@ -141,17 +156,21 @@ async function resolveDayName(
 ): Promise<string | null> {
   if (exerciseIds.length === 0) return null;
 
-  const { data, error } = await supabase
-    .from("day_exercises")
-    .select("training_split ( name )")
-    .eq("user_id", userId)
-    .in("exercise_id", exerciseIds)
-    .limit(1);
-  if (error) throw error;
+  try {
+    const { data, error } = await supabase
+      .from("day_exercises")
+      .select("training_split ( name )")
+      .eq("user_id", userId)
+      .in("exercise_id", exerciseIds)
+      .limit(1);
+    if (error) throw error;
 
-  const split = (data?.[0] as Record<string, unknown> | undefined)
-    ?.training_split as { name?: string } | null | undefined;
-  return split?.name ?? null;
+    const split = (data?.[0] as Record<string, unknown> | undefined)
+      ?.training_split as { name?: string } | null | undefined;
+    return split?.name ?? null;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -219,6 +238,11 @@ export async function fetchLastSession(): Promise<LastSession | null> {
 
     return { date, dayName, totalSets, topLift };
   } catch {
+    // The decorative lookups above can't reach here anymore, so a throw here is
+    // a real read failure (the set_logs queries themselves). Surface it instead
+    // of silently showing the "no sessions logged yet" empty state, which reads
+    // as "your session wasn't saved".
+    reportQueryError("Couldn't load your last session.");
     return null;
   }
 }

@@ -246,3 +246,164 @@ export async function fetchLastSession(): Promise<LastSession | null> {
     return null;
   }
 }
+
+/** One exercise's contribution to a past session, for the history list. */
+export interface HistoryExercise {
+  exerciseId: string | null;
+  name: string;
+  /** Number of sets logged for this exercise that session. */
+  sets: number;
+  /** Heaviest set that session (drives the "top NNkg × R" sub-label). */
+  topWeight: number | null;
+  topReps: number | null;
+}
+
+/** One past training session (all sets sharing a log_date), newest first. */
+export interface SessionHistoryEntry {
+  /** Local YYYY-MM-DD of the session. */
+  date: string;
+  dayName: string | null;
+  totalSets: number;
+  topLift: TopLift | null;
+  exercises: HistoryExercise[];
+}
+
+/**
+ * Maps each exercise id to the split day it belongs to, via day_exercises →
+ * training_split. Decorative (drives the per-session day label only), so it
+ * swallows its own errors and returns whatever it resolved — a failed embed
+ * must not sink the whole history list, exactly like resolveDayName above.
+ */
+async function resolveDayNamesByExercise(
+  userId: string,
+  exerciseIds: string[]
+): Promise<Map<string, string>> {
+  const byExercise = new Map<string, string>();
+  if (exerciseIds.length === 0) return byExercise;
+
+  try {
+    const { data, error } = await supabase
+      .from("day_exercises")
+      .select("exercise_id, training_split ( name )")
+      .eq("user_id", userId)
+      .in("exercise_id", exerciseIds);
+    if (error) throw error;
+
+    for (const row of data ?? []) {
+      const rec = row as Record<string, unknown>;
+      const exId = rec.exercise_id as string | undefined;
+      const split = rec.training_split as { name?: string } | null | undefined;
+      if (exId && split?.name) byExercise.set(exId, split.name);
+    }
+  } catch {
+    // leave the map empty — sessions fall back to the generic "Session" label.
+  }
+  return byExercise;
+}
+
+/**
+ * Every past training session, newest first: one entry per distinct log_date,
+ * each collapsed to its set count, the day it maps to, the headline (heaviest)
+ * lift, and a per-exercise breakdown. Powers the /train/history view. Empty on
+ * any failure so the screen shows its own empty state rather than throwing.
+ */
+export async function fetchSessionHistory(): Promise<SessionHistoryEntry[]> {
+  try {
+    const userId = await ensureAnonymousSession();
+
+    const { data, error } = await supabase
+      .from("set_logs")
+      .select("exercise_id, log_date, weight, reps, set_number")
+      .eq("user_id", userId)
+      .order("log_date", { ascending: false })
+      .order("set_number", { ascending: true });
+    if (error) throw error;
+
+    const rows = data ?? [];
+    if (rows.length === 0) return [];
+
+    // Group rows by their log_date. The query is already date-desc, so the Map
+    // preserves newest-first insertion order.
+    const byDate = new Map<string, Array<Record<string, unknown>>>();
+    for (const row of rows) {
+      const rec = row as Record<string, unknown>;
+      const date = rec.log_date as string;
+      const list = byDate.get(date) ?? [];
+      list.push(rec);
+      byDate.set(date, list);
+    }
+
+    // Resolve every exercise's name + day once, then decorate each session.
+    const allExerciseIds = [
+      ...new Set(rows.map((r) => (r as Record<string, unknown>).exercise_id as string).filter(Boolean)),
+    ];
+    const [names, dayNames] = await Promise.all([
+      resolveExerciseNames(allExerciseIds),
+      resolveDayNamesByExercise(userId, allExerciseIds),
+    ]);
+
+    const entries: SessionHistoryEntry[] = [];
+    for (const [date, sessionRows] of byDate) {
+      // Per-exercise breakdown: set count + heaviest set for that exercise.
+      const perExercise = new Map<string, HistoryExercise>();
+      let heaviest: { exerciseId: string | null; weight: number; reps: number } | null =
+        null;
+      let dayName: string | null = null;
+
+      for (const rec of sessionRows) {
+        const exId = (rec.exercise_id as string) ?? null;
+        const weight = Number(rec.weight) || 0;
+        const reps = Number(rec.reps) || 0;
+
+        if (exId && !dayName) dayName = dayNames.get(exId) ?? null;
+
+        const key = exId ?? "unknown";
+        const entry =
+          perExercise.get(key) ??
+          {
+            exerciseId: exId,
+            name: (exId && names.get(exId)) || "Lift",
+            sets: 0,
+            topWeight: null as number | null,
+            topReps: null as number | null,
+          };
+        entry.sets += 1;
+        if (weight > 0 && (entry.topWeight == null || weight > entry.topWeight)) {
+          entry.topWeight = weight;
+          entry.topReps = reps || null;
+        }
+        perExercise.set(key, entry);
+
+        if (
+          !heaviest ||
+          weight > heaviest.weight ||
+          (weight === heaviest.weight && reps > heaviest.reps)
+        ) {
+          heaviest = { exerciseId: exId, weight, reps };
+        }
+      }
+
+      const topLift: TopLift | null =
+        heaviest && heaviest.exerciseId && heaviest.weight > 0
+          ? {
+              name: names.get(heaviest.exerciseId) ?? "Lift",
+              weight: heaviest.weight,
+              reps: heaviest.reps,
+            }
+          : null;
+
+      entries.push({
+        date,
+        dayName,
+        totalSets: sessionRows.length,
+        topLift,
+        exercises: [...perExercise.values()],
+      });
+    }
+
+    return entries;
+  } catch {
+    reportQueryError("Couldn't load your training history.");
+    return [];
+  }
+}

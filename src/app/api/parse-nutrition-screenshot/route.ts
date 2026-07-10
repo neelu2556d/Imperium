@@ -18,12 +18,26 @@ const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 const DEFAULT_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";
 
 const PROMPT =
-  "Extract all food items, calories, and macros from this nutrition app " +
-  "screenshot. Return a JSON array: [{item_name, calories, protein_g, " +
-  "fat_g, carbs_g}]. Only return the JSON array, nothing else.";
+  "You are reading a nutrition-app screenshot. Extract every food item with " +
+  "its calories and macros (protein, fat, carbs in grams). Screenshots often " +
+  "show calories per item but only ONE combined macro total for the whole " +
+  "meal. In that case still fill in each item's calories, and read the meal's " +
+  "TOTAL protein/fat/carbs into the `total` field. If a food's macros are not " +
+  "shown individually, estimate them from the item name and its calories " +
+  "(protein 4 kcal/g, carbs 4 kcal/g, fat 9 kcal/g). Never leave every macro " +
+  "at 0. Respond with ONLY this JSON object, nothing else:\n" +
+  '{"items":[{"item_name":"","calories":0,"protein_g":0,"fat_g":0,' +
+  '"carbs_g":0}],"total":{"calories":0,"protein_g":0,"fat_g":0,"carbs_g":0}}';
 
 interface ParsedItem {
   item_name: string;
+  calories: number;
+  protein_g: number;
+  fat_g: number;
+  carbs_g: number;
+}
+
+interface MacroTotal {
   calories: number;
   protein_g: number;
   fat_g: number;
@@ -35,27 +49,63 @@ const toNum = (v: unknown): number => {
   return Number.isFinite(n) && n >= 0 ? n : 0;
 };
 
-/** Pulls the first JSON array out of a model response, tolerating stray prose
- *  or ```json fences around it. Returns null if nothing array-shaped is found. */
-function extractJsonArray(text: string): unknown[] | null {
+interface Extracted {
+  items: unknown[];
+  /** The meal-wide macro total, when the model reported one. */
+  total: Record<string, unknown> | null;
+}
+
+/** Parses the model response into an items array plus an optional meal total,
+ *  tolerating stray prose or ```json fences. The model is asked for an object
+ *  `{items, total}`, but we also accept a bare array for backwards safety.
+ *  Returns null if nothing item-shaped is found. */
+function extractResult(text: string): Extracted | null {
   const trimmed = text.trim();
-  try {
-    const direct = JSON.parse(trimmed);
-    if (Array.isArray(direct)) return direct;
-    // Some models wrap the array in an object, e.g. { "items": [...] }.
-    if (direct && typeof direct === "object") {
-      const arr = Object.values(direct).find((v) => Array.isArray(v));
-      if (arr) return arr as unknown[];
+
+  const fromValue = (v: unknown): Extracted | null => {
+    if (Array.isArray(v)) return { items: v, total: null };
+    if (v && typeof v === "object") {
+      const obj = v as Record<string, unknown>;
+      const arr = Array.isArray(obj.items)
+        ? obj.items
+        : (Object.values(obj).find((x) => Array.isArray(x)) as
+            | unknown[]
+            | undefined);
+      if (arr) {
+        const total =
+          obj.total && typeof obj.total === "object"
+            ? (obj.total as Record<string, unknown>)
+            : null;
+        return { items: arr, total };
+      }
     }
+    return null;
+  };
+
+  try {
+    const direct = fromValue(JSON.parse(trimmed));
+    if (direct) return direct;
   } catch {
     // fall through to substring extraction
   }
-  const start = trimmed.indexOf("[");
-  const end = trimmed.lastIndexOf("]");
-  if (start !== -1 && end > start) {
+
+  // Try to slice out an object first, then a bare array.
+  const objStart = trimmed.indexOf("{");
+  const objEnd = trimmed.lastIndexOf("}");
+  if (objStart !== -1 && objEnd > objStart) {
     try {
-      const arr = JSON.parse(trimmed.slice(start, end + 1));
-      if (Array.isArray(arr)) return arr;
+      const parsed = fromValue(JSON.parse(trimmed.slice(objStart, objEnd + 1)));
+      if (parsed) return parsed;
+    } catch {
+      // ignore
+    }
+  }
+  const arrStart = trimmed.indexOf("[");
+  const arrEnd = trimmed.lastIndexOf("]");
+  if (arrStart !== -1 && arrEnd > arrStart) {
+    try {
+      const arr = JSON.parse(trimmed.slice(arrStart, arrEnd + 1));
+      if (Array.isArray(arr)) return { items: arr, total: null };
     } catch {
       // ignore
     }
@@ -76,6 +126,60 @@ function normalise(raw: unknown[]): ParsedItem[] {
       fat_g: toNum(r.fat_g),
       carbs_g: toNum(r.carbs_g),
     }));
+}
+
+const MACRO_KEYS = ["protein_g", "fat_g", "carbs_g"] as const;
+type MacroKey = (typeof MACRO_KEYS)[number];
+
+/**
+ * When the screenshot only carried a single meal-wide macro total (per-item
+ * macros all came back as 0), spread that total across the items in proportion
+ * to each item's calories so nothing is logged as 0/0/0. Any per-item macros
+ * the model *did* provide are left untouched.
+ */
+function applyMealTotal(
+  items: ParsedItem[],
+  total: MacroTotal | null
+): ParsedItem[] {
+  if (!total || items.length === 0) return items;
+
+  const totalCalories = items.reduce((sum, it) => sum + it.calories, 0);
+
+  for (const key of MACRO_KEYS) {
+    const target = total[key];
+    if (target <= 0) continue;
+
+    // Only distribute macros the items don't already account for.
+    const alreadyAssigned = items.reduce((sum, it) => sum + it[key], 0);
+    if (alreadyAssigned > 0) continue;
+
+    let assigned = 0;
+    items.forEach((it, i) => {
+      const isLast = i === items.length - 1;
+      // Give the remainder to the last item so the parts sum to the total.
+      const share = isLast
+        ? target - assigned
+        : totalCalories > 0
+          ? Math.round((it.calories / totalCalories) * target)
+          : Math.round(target / items.length);
+      it[key] = Math.max(0, share);
+      assigned += it[key];
+    });
+  }
+
+  return items;
+}
+
+function normaliseTotal(raw: Record<string, unknown> | null): MacroTotal | null {
+  if (!raw) return null;
+  const total: MacroTotal = {
+    calories: toNum(raw.calories),
+    protein_g: toNum(raw.protein_g),
+    fat_g: toNum(raw.fat_g),
+    carbs_g: toNum(raw.carbs_g),
+  };
+  const hasMacros = MACRO_KEYS.some((k) => total[k as MacroKey] > 0);
+  return hasMacros ? total : null;
 }
 
 export async function POST(request: Request) {
@@ -147,15 +251,18 @@ export async function POST(request: Request) {
     );
   }
 
-  const arr = extractJsonArray(content);
-  if (!arr) {
+  const extracted = extractResult(content);
+  if (!extracted) {
     return Response.json(
       { error: "Couldn't find any food items in that screenshot." },
       { status: 422 }
     );
   }
 
-  const items = normalise(arr);
+  const items = applyMealTotal(
+    normalise(extracted.items),
+    normaliseTotal(extracted.total)
+  );
   if (items.length === 0) {
     return Response.json(
       { error: "Couldn't find any food items in that screenshot." },

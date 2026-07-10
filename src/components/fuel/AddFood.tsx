@@ -67,11 +67,13 @@ export default function AddFood({ onLogged }: AddFoodProps) {
         </button>
       </div>
 
+      {/* No `capture` attribute: this lets the browser show its full picker
+          (Photo Library / Take Photo / Files) instead of jumping straight to
+          the camera, since imports are almost always existing screenshots. */}
       <input
         ref={fileInput}
         type="file"
         accept="image/*"
-        capture="environment"
         onChange={onPickImage}
         className="hidden"
       />

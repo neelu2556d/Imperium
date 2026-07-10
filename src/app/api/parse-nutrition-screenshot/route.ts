@@ -132,10 +132,17 @@ const MACRO_KEYS = ["protein_g", "fat_g", "carbs_g"] as const;
 type MacroKey = (typeof MACRO_KEYS)[number];
 
 /**
- * When the screenshot only carried a single meal-wide macro total (per-item
- * macros all came back as 0), spread that total across the items in proportion
- * to each item's calories so nothing is logged as 0/0/0. Any per-item macros
- * the model *did* provide are left untouched.
+ * When the screenshot shows a meal-wide macro total, that total is
+ * authoritative — the app should log exactly the protein/fat/carbs the
+ * screenshot reports, not the model's own per-item guesses (which are usually
+ * close but wrong, e.g. summing to 46g protein when the screenshot says 52.1g).
+ *
+ * For each macro we therefore RESCALE the per-item values so they sum exactly
+ * to the reported total. The per-item numbers are used only as split weights:
+ * if the model gave per-item macros we keep their relative proportions; if it
+ * didn't (all 0), we fall back to splitting by each item's calories. Integer
+ * rounding remainder is pushed onto the largest-weighted item so the parts
+ * always add back up to the total.
  */
 function applyMealTotal(
   items: ParsedItem[],
@@ -149,22 +156,30 @@ function applyMealTotal(
     const target = total[key];
     if (target <= 0) continue;
 
-    // Only distribute macros the items don't already account for.
-    const alreadyAssigned = items.reduce((sum, it) => sum + it[key], 0);
-    if (alreadyAssigned > 0) continue;
+    // Weights decide how the total is split. Prefer the model's per-item macro
+    // proportions; fall back to calorie share; last resort, even split.
+    const macroSum = items.reduce((sum, it) => sum + it[key], 0);
+    const weights = items.map((it) => {
+      if (macroSum > 0) return it[key];
+      if (totalCalories > 0) return it.calories;
+      return 1;
+    });
+    const weightSum = weights.reduce((s, w) => s + w, 0) || items.length;
 
     let assigned = 0;
+    let maxWeightIdx = 0;
     items.forEach((it, i) => {
-      const isLast = i === items.length - 1;
-      // Give the remainder to the last item so the parts sum to the total.
-      const share = isLast
-        ? target - assigned
-        : totalCalories > 0
-          ? Math.round((it.calories / totalCalories) * target)
-          : Math.round(target / items.length);
+      const share = Math.round((weights[i] / weightSum) * target);
       it[key] = Math.max(0, share);
       assigned += it[key];
+      if (weights[i] > weights[maxWeightIdx]) maxWeightIdx = i;
     });
+
+    // Correct rounding drift so the per-item macros sum to exactly `target`.
+    const drift = Math.round(target) - assigned;
+    if (drift !== 0) {
+      items[maxWeightIdx][key] = Math.max(0, items[maxWeightIdx][key] + drift);
+    }
   }
 
   return items;

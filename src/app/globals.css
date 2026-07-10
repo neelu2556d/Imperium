@@ -945,3 +945,403 @@ select,
   background: rgba(239, 68, 68, 0.04);
   box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.28);
 }
+
+/* =========================================================================
+   /home: "Vitality" bento tiles
+   Dark glass tiles on a responsive grid, each carrying an animated SVG art
+   layer (self-drawing wires, breathing rings, growing bars, orbiting motes).
+   Modelled on the ep0-khaki Vitality dashboard, retinted to Imperium tokens.
+   ========================================================================= */
+
+.vee-grid {
+  --vee-gap: 14px;
+  position: relative;
+  display: grid;
+  width: 100%;
+  max-width: 1000px;
+  margin-inline: auto;
+  gap: var(--vee-gap);
+  grid-template-columns: repeat(2, 1fr);
+  grid-auto-rows: minmax(148px, 30vw);
+  grid-template-areas:
+    "train  train"
+    "vitals fuel"
+    "brand  brand";
+}
+
+.vee-grid > .area-train {
+  grid-area: train;
+}
+.vee-grid > .area-vitals {
+  grid-area: vitals;
+}
+.vee-grid > .area-fuel {
+  grid-area: fuel;
+}
+.vee-grid > .area-brand {
+  grid-area: brand;
+}
+
+@media (min-width: 768px) {
+  .vee-grid {
+    --vee-gap: 18px;
+    grid-template-columns: repeat(4, 1fr);
+    grid-auto-rows: minmax(150px, 15vw);
+    grid-template-areas:
+      "train  train  fuel   brand"
+      "vitals vitals fuel   brand";
+  }
+}
+
+/* ----- the tile shell (glass, chrome, hover) ----- */
+.vee-tile {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  display: block;
+  height: 100%;
+  border-radius: 20px;
+  border: 1px solid rgba(167, 243, 208, 0.1);
+  background: linear-gradient(
+    165deg,
+    rgba(16, 26, 22, 0.55),
+    rgba(7, 12, 10, 0.4)
+  );
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 22px 50px -30px rgba(0, 0, 0, 0.75);
+  cursor: pointer;
+  outline: none;
+  text-decoration: none;
+  transition: border-color 0.4s var(--ease-premium),
+    background 0.4s var(--ease-premium), box-shadow 0.4s var(--ease-premium),
+    transform var(--duration-fast) var(--ease-out-soft);
+}
+
+.vee-tile:hover,
+.vee-tile:focus-visible {
+  border-color: rgba(110, 231, 183, 0.3);
+  background: linear-gradient(
+    165deg,
+    rgba(22, 34, 29, 0.62),
+    rgba(9, 15, 13, 0.46)
+  );
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    0 26px 56px -28px rgba(0, 0, 0, 0.8);
+}
+
+.vee-tile:active {
+  transform: scale(0.985);
+}
+
+/* soft radial glow high on the tile */
+.vee-tile .vee-aurora {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse 85% 75% at 58% 38%,
+    rgba(110, 231, 183, 0.07),
+    transparent 64%
+  );
+}
+
+/* the animated art fills the tile behind the text chrome */
+.vee-tile .vee-art {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.vee-tile .vee-art svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* bottom-up fade so text stays legible over the art */
+.vee-tile::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  background: linear-gradient(
+    0deg,
+    rgba(4, 7, 6, 0.62) 0,
+    rgba(4, 7, 6, 0.16) 24%,
+    transparent 46%
+  );
+}
+
+/* ----- text chrome (index / glyph / stat / label / arrow) ----- */
+.vee-tile .vee-index {
+  position: absolute;
+  top: 15px;
+  left: 18px;
+  z-index: 6;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: rgba(255, 255, 255, 0.38);
+}
+
+.vee-tile .vee-glyph {
+  position: absolute;
+  top: 13px;
+  right: 15px;
+  z-index: 6;
+  width: 20px;
+  height: 20px;
+  color: var(--color-mint);
+  opacity: 0.42;
+}
+
+.vee-tile .vee-stat {
+  position: absolute;
+  left: 18px;
+  bottom: 44px;
+  z-index: 6;
+  font-family: var(--font-mono);
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  color: var(--color-mint);
+}
+.vee-tile .vee-stat i {
+  font-style: normal;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.5);
+  margin-left: 5px;
+}
+
+.vee-tile .vee-label {
+  position: absolute;
+  left: 18px;
+  bottom: 15px;
+  z-index: 6;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 21px;
+  color: #fff;
+}
+
+.vee-tile .vee-arrow {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  z-index: 6;
+  color: rgba(255, 255, 255, 0.4);
+  transition: color 0.3s var(--ease-premium),
+    transform 0.3s var(--ease-premium);
+}
+.vee-tile:hover .vee-arrow {
+  color: var(--color-mint);
+  transform: translateX(2px);
+}
+
+/* per-tile accent recolours the stat + glyph */
+.vee-tile.tile-vitals .vee-stat {
+  color: rgba(255, 255, 255, 0.9);
+}
+.vee-tile.tile-vitals.is-warn .vee-stat {
+  color: var(--color-amber);
+}
+.vee-tile.tile-fuel .vee-stat {
+  color: var(--color-mint);
+}
+
+/* ----- the brand (Imperium) tile: centred breathing gem ----- */
+.vee-tile.tile-brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+.vee-tile.tile-brand .vee-disc {
+  position: absolute;
+  left: 50%;
+  top: 44%;
+  width: min(320px, 90%);
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  z-index: 1;
+  pointer-events: none;
+  background: radial-gradient(
+    circle,
+    rgba(110, 231, 183, 0.12) 0,
+    rgba(110, 231, 183, 0.05) 42%,
+    transparent 66%
+  );
+  animation: veeDisc 9s var(--ease-premium) infinite;
+}
+.vee-tile.tile-brand .vee-brand-inner {
+  position: relative;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.vee-tile.tile-brand .vee-kicker {
+  margin-top: 10px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--color-mint);
+  opacity: 0.9;
+}
+
+/* ----- summary popover (long-press) ----- */
+.vee-tile .vee-summary {
+  position: absolute;
+  inset-inline: 12px;
+  bottom: 12px;
+  z-index: 8;
+  border-radius: 10px;
+  border: 1px solid var(--color-border-strong);
+  background: rgba(10, 10, 10, 0.95);
+  backdrop-filter: blur(8px);
+  padding: 8px 12px;
+  font-size: 0.72rem;
+  color: var(--color-muted-strong);
+  pointer-events: none;
+}
+
+/* =========================================================================
+   Tile-art animation primitives (consumed by the SVG art components)
+   ========================================================================= */
+
+/* a stroke that draws itself in once, then holds */
+.vee-draw {
+  stroke-dasharray: var(--len, 100);
+  stroke-dashoffset: var(--len, 100);
+  animation: veeDraw 1.5s var(--ease-premium) var(--d, 0s) forwards;
+}
+@keyframes veeDraw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* a node that pops in then softly pulses */
+.vee-node {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: veeNodeIn 0.6s var(--ease-premium) var(--d, 0s) both,
+    veeNodePulse 3.2s ease-in-out calc(var(--d, 0s) + 0.6s) infinite;
+}
+@keyframes veeNodeIn {
+  from {
+    transform: scale(0);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+@keyframes veeNodePulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* a bar that grows up from its baseline */
+.vee-bar {
+  transform-box: fill-box;
+  transform-origin: center bottom;
+  transform: scaleY(0);
+  animation: veeBarGrow 0.7s var(--ease-premium) var(--d, 0s) forwards;
+}
+@keyframes veeBarGrow {
+  to {
+    transform: scaleY(1);
+  }
+}
+
+/* concentric rings that ease in then breathe */
+.vee-ring {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: veeRingIn 0.7s var(--ease-premium) var(--d, 0s) both,
+    veeRingBreathe 5s ease-in-out calc(var(--d, 0s) + 0.7s) infinite;
+}
+@keyframes veeRingIn {
+  from {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+@keyframes veeRingBreathe {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.045);
+  }
+}
+
+/* an orbiting mote around the brand gem */
+.vee-mote {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: veeOrbit var(--orb, 8s) linear var(--d, 0s) infinite;
+}
+@keyframes veeOrbit {
+  from {
+    transform: rotate(0deg) translateX(var(--r, 40px)) rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg) translateX(var(--r, 40px)) rotate(-360deg);
+  }
+}
+
+@keyframes veeDisc {
+  0%,
+  100% {
+    opacity: 0.7;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.08);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vee-tile:active {
+    transform: none;
+  }
+  .vee-draw {
+    stroke-dashoffset: 0;
+    animation: none;
+  }
+  .vee-node,
+  .vee-bar,
+  .vee-ring,
+  .vee-mote,
+  .tile-brand .vee-disc {
+    animation: none;
+    transform: none;
+    opacity: 1;
+  }
+  .vee-bar {
+    transform: scaleY(1);
+  }
+}

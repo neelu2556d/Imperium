@@ -2,11 +2,19 @@
 
 import { useState } from "react";
 import BottomSheet from "@/components/vitals/BottomSheet";
-import { addFoodLogs, type FoodEntryInput } from "@/lib/supabase/nutrition";
+import {
+  addFoodLogs,
+  type FoodEntryInput,
+  type MealType,
+} from "@/lib/supabase/nutrition";
 
 interface ManualLogSheetProps {
   onClose: () => void;
   onLogged: () => void;
+  /** Which meal section this entry is logged into. */
+  mealType: MealType;
+  /** Human label for the meal, shown in the sheet title. */
+  mealLabel: string;
 }
 
 interface NumField {
@@ -35,6 +43,8 @@ const toNum = (v: string): number => {
 export default function ManualLogSheet({
   onClose,
   onLogged,
+  mealType,
+  mealLabel,
 }: ManualLogSheetProps) {
   const [name, setName] = useState("");
   const [vals, setVals] = useState<Record<NumField["key"], string>>({
@@ -60,7 +70,7 @@ export default function ManualLogSheet({
       carbs: toNum(vals.carbs),
     };
     try {
-      await addFoodLogs([entry], "manual");
+      await addFoodLogs([entry], "manual", mealType);
       onLogged();
       onClose();
     } catch {
@@ -70,7 +80,7 @@ export default function ManualLogSheet({
   };
 
   return (
-    <BottomSheet title="Log manually" onClose={onClose}>
+    <BottomSheet title={`Log · ${mealLabel}`} onClose={onClose}>
       <div className="mt-4 flex flex-col gap-3">
         <label className="flex flex-col gap-1.5">
           <span className="mono text-[0.62rem] uppercase tracking-[0.12em] text-muted">

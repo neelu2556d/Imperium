@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import MacroSummary from "@/components/fuel/MacroSummary";
-import FoodLog from "@/components/fuel/FoodLog";
-import AddFood from "@/components/fuel/AddFood";
+import MealSection from "@/components/fuel/MealSection";
+import ManualLogSheet from "@/components/fuel/ManualLogSheet";
+import ScreenshotImportSheet from "@/components/fuel/ScreenshotImportSheet";
 import GoalsCard from "@/components/fuel/GoalsCard";
 import { pushToast } from "@/lib/toast";
 import {
@@ -11,19 +12,36 @@ import {
   deleteFoodLog,
   fetchNutritionGoals,
   fetchTodayFoodLogs,
+  MEAL_TYPES,
   type FoodLog as FoodLogEntry,
+  type MealType,
   type NutritionGoals,
 } from "@/lib/supabase/nutrition";
 
+/** The label for a meal type, e.g. "breakfast" → "Breakfast". */
+function mealLabel(type: MealType): string {
+  return MEAL_TYPES.find((m) => m.type === type)?.label ?? "Snacks";
+}
+
 /**
  * The /fuel tab. Owns the day's state — macro goals + today's food logs — so
- * the hero ring, stat pills, and log list all update live from a single source
- * as meals are added or removed. Sections are otherwise self-contained.
+ * the hero ring, stat pills, and the four meal sections all update live from a
+ * single source as meals are added or removed. Logs are grouped by meal_type;
+ * each section logs/imports straight into its own meal via screen-level sheet
+ * state (which meal + which sheet is open).
  */
 export default function FuelScreen() {
   const [goals, setGoals] = useState<NutritionGoals>(DEFAULT_NUTRITION_GOALS);
   const [logs, setLogs] = useState<FoodLogEntry[]>([]);
   const [ready, setReady] = useState(false);
+
+  // Which meal a sheet targets, and which sheet (if any) is open.
+  const [manualMeal, setManualMeal] = useState<MealType | null>(null);
+  const [importMeal, setImportMeal] = useState<MealType | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
+  // Remembers which meal the pending file picker is filling.
+  const pendingImportMeal = useRef<MealType>("snacks");
 
   const loadLogs = useCallback(() => fetchTodayFoodLogs().then(setLogs), []);
 
@@ -59,6 +77,18 @@ export default function FuelScreen() {
     [logs]
   );
 
+  // Group today's logs into their meal sections (order per MEAL_TYPES).
+  const byMeal = useMemo(() => {
+    const groups: Record<MealType, FoodLogEntry[]> = {
+      breakfast: [],
+      lunch: [],
+      dinner: [],
+      snacks: [],
+    };
+    for (const l of logs) groups[l.meal_type].push(l);
+    return groups;
+  }, [logs]);
+
   const handleDelete = useCallback(
     async (id: string) => {
       const prev = logs;
@@ -72,6 +102,22 @@ export default function FuelScreen() {
     },
     [logs]
   );
+
+  // A meal's "Import" button remembers the meal, then opens the device picker.
+  const openImport = useCallback((meal: MealType) => {
+    pendingImportMeal.current = meal;
+    fileInput.current?.click();
+  }, []);
+
+  const onPickImage = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    // Reset so picking the same file again still fires onChange.
+    e.target.value = "";
+    if (file) {
+      setImportMeal(pendingImportMeal.current);
+      setImageFile(file);
+    }
+  };
 
   return (
     <div className="mx-auto w-full max-w-md px-5 pb-28 pt-8 md:max-w-lg md:px-8">
@@ -89,14 +135,54 @@ export default function FuelScreen() {
         style={{ opacity: ready ? 1 : 0.6, transition: "opacity 200ms" }}
       >
         <MacroSummary totals={totals} goals={goals} />
-        <FoodLog
-          items={logs}
-          totalCalories={totals.calories}
-          onDelete={handleDelete}
-        />
-        <AddFood onLogged={loadLogs} />
+
+        {MEAL_TYPES.map((m) => (
+          <MealSection
+            key={m.type}
+            mealType={m.type}
+            label={m.label}
+            items={byMeal[m.type]}
+            onDelete={handleDelete}
+            onLog={setManualMeal}
+            onImport={openImport}
+          />
+        ))}
+
         <GoalsCard goals={goals} />
       </div>
+
+      {/* Shared hidden picker. No `capture` attr so the browser shows its full
+          picker (Photo Library / Files) rather than jumping to the camera. */}
+      <input
+        ref={fileInput}
+        type="file"
+        accept="image/*"
+        onChange={onPickImage}
+        className="hidden"
+      />
+
+      {manualMeal && (
+        <ManualLogSheet
+          mealType={manualMeal}
+          mealLabel={mealLabel(manualMeal)}
+          onClose={() => setManualMeal(null)}
+          onLogged={loadLogs}
+        />
+      )}
+
+      {imageFile && importMeal && (
+        <ScreenshotImportSheet
+          file={imageFile}
+          mealType={importMeal}
+          mealLabel={mealLabel(importMeal)}
+          onClose={() => {
+            setImageFile(null);
+            setImportMeal(null);
+          }}
+          onLogged={loadLogs}
+          onFallbackManual={() => setManualMeal(importMeal)}
+        />
+      )}
     </div>
   );
 }

@@ -63,6 +63,31 @@ export async function saveNutritionGoals(goals: NutritionGoals): Promise<void> {
 
 export type FoodSource = "manual" | "screenshot_import";
 
+/** Which meal a logged item belongs to. Rows default to "snacks". */
+export type MealType = "breakfast" | "lunch" | "dinner" | "snacks";
+
+/** The four meal sections in display order, with their labels. */
+export const MEAL_TYPES: { type: MealType; label: string }[] = [
+  { type: "breakfast", label: "Breakfast" },
+  { type: "lunch", label: "Lunch" },
+  { type: "dinner", label: "Dinner" },
+  { type: "snacks", label: "Snacks" },
+];
+
+const MEAL_TYPE_SET = new Set<MealType>([
+  "breakfast",
+  "lunch",
+  "dinner",
+  "snacks",
+]);
+
+/** Narrows an arbitrary DB string to a MealType, defaulting to "snacks". */
+function toMealType(v: unknown): MealType {
+  return typeof v === "string" && MEAL_TYPE_SET.has(v as MealType)
+    ? (v as MealType)
+    : "snacks";
+}
+
 export interface FoodLog {
   id: string;
   item_name: string;
@@ -71,6 +96,7 @@ export interface FoodLog {
   fat: number;
   carbs: number;
   source: FoodSource;
+  meal_type: MealType;
 }
 
 /** The macro payload for a single food item, before it has a row id. */
@@ -96,22 +122,50 @@ const num = (v: unknown): number => {
 };
 
 /**
+ * True when a Supabase/Postgres error is "column meal_type does not exist"
+ * (code 42703). Lets the data layer keep working against a DB where the
+ * 0015 migration hasn't been applied yet — reads/writes fall back to the
+ * pre-meal_type shape and everything lands under "snacks".
+ */
+function isMissingMealTypeColumn(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const e = error as { code?: string; message?: string };
+  return (
+    e.code === "42703" ||
+    (typeof e.message === "string" && /meal_type/i.test(e.message) &&
+      /column|does not exist|schema cache/i.test(e.message))
+  );
+}
+
+/**
  * Loads today's logged food items, newest first. Defensive on reads — a
  * brand-new user has no rows — so failures resolve to an empty list rather
- * than blowing up the whole tab.
+ * than blowing up the whole tab. Falls back to a meal_type-less select when
+ * the column isn't present yet (pre-0015), defaulting rows to "snacks".
  */
 export async function fetchTodayFoodLogs(): Promise<FoodLog[]> {
   try {
     const userId = await ensureAnonymousSession();
-    const { data, error } = await supabase
-      .from("food_logs")
-      .select("id, item_name, calories, protein, fat, carbs, source")
-      .eq("user_id", userId)
-      .eq("log_date", localISODate())
-      .order("created_at", { ascending: false });
+
+    const run = (columns: string) =>
+      supabase
+        .from("food_logs")
+        .select(columns)
+        .eq("user_id", userId)
+        .eq("log_date", localISODate())
+        .order("created_at", { ascending: false });
+
+    let { data, error } = await run(
+      "id, item_name, calories, protein, fat, carbs, source, meal_type"
+    );
+    if (error && isMissingMealTypeColumn(error)) {
+      ({ data, error } = await run(
+        "id, item_name, calories, protein, fat, carbs, source"
+      ));
+    }
     if (error) throw error;
 
-    return (data ?? []).map((r) => ({
+    return ((data ?? []) as unknown as Record<string, unknown>[]).map((r) => ({
       id: String(r.id),
       item_name: String(r.item_name),
       calories: num(r.calories),
@@ -119,6 +173,7 @@ export async function fetchTodayFoodLogs(): Promise<FoodLog[]> {
       fat: num(r.fat),
       carbs: num(r.carbs),
       source: (r.source as FoodSource) ?? "manual",
+      meal_type: toMealType(r.meal_type),
     }));
   } catch {
     return [];
@@ -126,18 +181,21 @@ export async function fetchTodayFoodLogs(): Promise<FoodLog[]> {
 }
 
 /**
- * Inserts one or more food items for today. Writes surface errors so the UI
- * can show a retry rather than silently dropping a meal.
+ * Inserts one or more food items for today into the given meal section. Writes
+ * surface errors so the UI can show a retry rather than silently dropping a
+ * meal. If the meal_type column isn't present yet (pre-0015), the insert is
+ * retried without it so items still save (landing under "snacks" on read).
  */
 export async function addFoodLogs(
   entries: FoodEntryInput[],
-  source: FoodSource
+  source: FoodSource,
+  mealType: MealType = "snacks"
 ): Promise<void> {
   if (entries.length === 0) return;
   const userId = await ensureAnonymousSession();
   const date = localISODate();
 
-  const rows = entries.map((e) => ({
+  const baseRows = entries.map((e) => ({
     user_id: userId,
     log_date: date,
     item_name: e.item_name.trim() || "Untitled",
@@ -148,7 +206,17 @@ export async function addFoodLogs(
     source,
   }));
 
-  const { error } = await supabase.from("food_logs").insert(rows);
+  const { error } = await supabase
+    .from("food_logs")
+    .insert(baseRows.map((r) => ({ ...r, meal_type: mealType })));
+
+  if (error && isMissingMealTypeColumn(error)) {
+    const { error: retryError } = await supabase
+      .from("food_logs")
+      .insert(baseRows);
+    if (retryError) throw retryError;
+    return;
+  }
   if (error) throw error;
 }
 

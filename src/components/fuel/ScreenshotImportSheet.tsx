@@ -2,7 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import BottomSheet from "@/components/vitals/BottomSheet";
-import { addFoodLogs, type FoodEntryInput } from "@/lib/supabase/nutrition";
+import {
+  addFoodLogs,
+  type FoodEntryInput,
+  type MealType,
+} from "@/lib/supabase/nutrition";
 
 interface ScreenshotImportSheetProps {
   file: File;
@@ -10,6 +14,10 @@ interface ScreenshotImportSheetProps {
   onLogged: () => void;
   /** "Try logging manually instead" fallback from the error state. */
   onFallbackManual: () => void;
+  /** Which meal section the imported items are logged into. */
+  mealType: MealType;
+  /** Human label for the meal, shown in the sheet title. */
+  mealLabel: string;
 }
 
 /** A parsed item held in editable form (string fields for the inputs). */
@@ -49,6 +57,8 @@ export default function ScreenshotImportSheet({
   onClose,
   onLogged,
   onFallbackManual,
+  mealType,
+  mealLabel,
 }: ScreenshotImportSheetProps) {
   const [phase, setPhase] = useState<Phase>("loading");
   const [items, setItems] = useState<DraftItem[]>([]);
@@ -131,7 +141,7 @@ export default function ScreenshotImportSheet({
       carbs: toNum(it.carbs_g),
     }));
     try {
-      await addFoodLogs(entries, "screenshot_import");
+      await addFoodLogs(entries, "screenshot_import", mealType);
       onLogged();
       onClose();
     } catch {
@@ -142,7 +152,7 @@ export default function ScreenshotImportSheet({
   };
 
   return (
-    <BottomSheet title="Import screenshot" onClose={onClose}>
+    <BottomSheet title={`Import · ${mealLabel}`} onClose={onClose}>
       {phase === "loading" && (
         <div className="flex flex-col items-center gap-3 py-10">
           <span

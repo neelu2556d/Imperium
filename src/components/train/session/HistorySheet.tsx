@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Sparkline from "@/components/home/Sparkline";
+import { useSheet } from "@/lib/useSheet";
 import { fetchExerciseHistory, type HistoryEntry } from "@/lib/supabase/session";
 import { formatWeight } from "@/lib/train/overload";
 
@@ -35,6 +36,15 @@ export default function HistorySheet({
   onClose,
 }: HistorySheetProps) {
   const [entries, setEntries] = useState<HistoryEntry[] | null>(null);
+  const {
+    backdropClassName,
+    panelClassName,
+    panelRef,
+    panelStyle,
+    handleProps,
+    handleStyle,
+    close,
+  } = useSheet(onClose);
 
   useEffect(() => {
     let cancelled = false;
@@ -55,24 +65,30 @@ export default function HistorySheet({
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center">
       <div
-        className="absolute inset-0"
+        className={`absolute inset-0 ${backdropClassName}`}
         style={{ background: "rgba(0,0,0,0.55)" }}
-        onClick={onClose}
+        onClick={close}
         aria-hidden
       />
       <div
-        className="relative flex max-h-[80vh] w-full max-w-md flex-col rounded-t-2xl border-x border-t p-6 pb-8"
+        ref={panelRef}
+        className={`relative flex max-h-[80vh] w-full max-w-md flex-col rounded-t-2xl border-x border-t p-6 pb-8 ${panelClassName}`}
         style={{
           borderColor: "var(--color-border-strong)",
           background: "var(--color-bg-elevated)",
+          ...panelStyle,
         }}
         role="dialog"
         aria-label={`History for ${exerciseName}`}
       >
         <div
           className="mx-auto mb-4 h-1 w-10 shrink-0 rounded-full"
-          style={{ background: "var(--color-border-strong)" }}
+          style={{
+            background: "var(--color-border-strong)",
+            ...handleStyle,
+          }}
           aria-hidden
+          {...handleProps}
         />
 
         <div className="flex shrink-0 items-end justify-between gap-3">

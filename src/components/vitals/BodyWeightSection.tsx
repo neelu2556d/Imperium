@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import SectionCard from "@/components/vitals/SectionCard";
 import WeightChart, { type WeightRange } from "@/components/vitals/WeightChart";
+import CountUp from "@/components/motion/CountUp";
 import { ScaleIcon, PlusIcon } from "@/components/vitals/icons";
 import {
   fetchBodyWeights,
@@ -82,7 +83,22 @@ export default function BodyWeightSection() {
     >
       {/* stat row */}
       <div className="mono flex flex-wrap items-center gap-x-4 gap-y-1 text-[0.72rem] tabular-nums">
-        <Stat label="Current" value={stats.current != null ? `${fmt1(toDisplay(stats.current))}${unit}` : "—"} accent />
+        <Stat
+          label="Current"
+          value={
+            stats.current != null ? (
+              <CountUp
+                value={toDisplay(stats.current)}
+                suffix={unit}
+                format={fmt1}
+                restartKey={`${points?.length}-${unit}`}
+              />
+            ) : (
+              "—"
+            )
+          }
+          accent
+        />
         <Divider />
         <Stat label="7-day avg" value={stats.avg7 != null ? `${fmt1(toDisplay(stats.avg7))}${unit}` : "—"} />
         <Divider />
@@ -224,7 +240,7 @@ function Stat({
   tone,
 }: {
   label: string;
-  value: string;
+  value: React.ReactNode;
   accent?: boolean;
   tone?: "up" | "down" | "flat";
 }) {

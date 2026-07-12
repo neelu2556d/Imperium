@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import MuscleIcon from "@/components/onboarding/pick-exercises/MuscleIcon";
 import { SearchIcon } from "@/components/train/session/icons";
+import { useSheet } from "@/lib/useSheet";
 import { searchExercises, type ExerciseHit } from "@/lib/supabase/exercises";
 import { searchCatalog } from "@/lib/split/exerciseCatalog";
 
@@ -26,6 +27,15 @@ export default function SwapSheet({ currentName, onClose, onConfirm }: SwapSheet
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<ExerciseHit[]>([]);
   const [selected, setSelected] = useState<ExerciseHit | null>(null);
+  const {
+    backdropClassName,
+    panelClassName,
+    panelRef,
+    panelStyle,
+    handleProps,
+    handleStyle,
+    close,
+  } = useSheet(onClose);
 
   // Debounced search: Supabase first, local catalog fallback.
   useEffect(() => {
@@ -62,24 +72,30 @@ export default function SwapSheet({ currentName, onClose, onConfirm }: SwapSheet
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center">
       <div
-        className="absolute inset-0"
+        className={`absolute inset-0 ${backdropClassName}`}
         style={{ background: "rgba(0,0,0,0.55)" }}
-        onClick={onClose}
+        onClick={close}
         aria-hidden
       />
       <div
-        className="relative flex max-h-[80vh] w-full max-w-md flex-col rounded-t-2xl border-x border-t p-6 pb-8"
+        ref={panelRef}
+        className={`relative flex max-h-[80vh] w-full max-w-md flex-col rounded-t-2xl border-x border-t p-6 pb-8 ${panelClassName}`}
         style={{
           borderColor: "var(--color-border-strong)",
           background: "var(--color-bg-elevated)",
+          ...panelStyle,
         }}
         role="dialog"
         aria-label={`Swap ${currentName}`}
       >
         <div
           className="mx-auto mb-4 h-1 w-10 shrink-0 rounded-full"
-          style={{ background: "var(--color-border-strong)" }}
+          style={{
+            background: "var(--color-border-strong)",
+            ...handleStyle,
+          }}
           aria-hidden
+          {...handleProps}
         />
 
         {selected ? (

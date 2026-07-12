@@ -39,9 +39,24 @@ export default function BottomNav() {
     return null;
   }
 
+  const activeIndex = TABS.findIndex(({ href }) => pathname.startsWith(href));
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-bg/70 backdrop-blur-lg">
-      <ul className="flex">
+      <ul className="relative flex">
+        {/* mint indicator that slides horizontally to the active tab */}
+        {activeIndex >= 0 && (
+          <li
+            aria-hidden
+            className="vt-nav-indicator pointer-events-none absolute top-0 h-0.5"
+            style={{
+              width: `${100 / TABS.length}%`,
+              transform: `translateX(${activeIndex * 100}%)`,
+              background: "var(--color-mint)",
+              boxShadow: "0 0 8px var(--color-mint-glow)",
+            }}
+          />
+        )}
         {TABS.map(({ href, label, Icon }) => {
           const isActive = pathname.startsWith(href);
           return (
@@ -56,7 +71,14 @@ export default function BottomNav() {
                     : "var(--color-muted)",
                 }}
               >
-                <Icon size={20} />
+                {/* remount on activation so the bounce replays each tab switch */}
+                <span
+                  key={isActive ? "on" : "off"}
+                  className={isActive ? "vt-nav-bounce" : undefined}
+                  style={{ display: "inline-flex" }}
+                >
+                  <Icon size={20} />
+                </span>
                 <span>{label}</span>
               </Link>
             </li>

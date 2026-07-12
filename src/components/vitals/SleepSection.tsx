@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import SectionCard from "@/components/vitals/SectionCard";
 import EditGoalSheet from "@/components/vitals/EditGoalSheet";
+import CountUp from "@/components/motion/CountUp";
+import { useReducedMotion } from "@/lib/motion";
 import { MoonIcon, PlusIcon } from "@/components/vitals/icons";
 import {
   fetchSleep,
@@ -72,6 +74,16 @@ export default function SleepSection() {
   const today = state?.today ?? null;
   const pct = today != null ? Math.min(1, today / goal) : 0;
 
+  // Sweep the arc from 0 on mount: paint empty, flip to the real value next
+  // frame so the stroke-dasharray transition animates (700ms easeOutCubic).
+  const reduced = useReducedMotion();
+  const [swept, setSwept] = useState(false);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setSwept(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
+  const arcPct = swept || reduced ? pct : 0;
+
   return (
     <SectionCard
       icon={<MoonIcon size={20} />}
@@ -110,10 +122,11 @@ export default function SleepSection() {
             strokeWidth="12"
             strokeLinecap="round"
             pathLength={100}
-            strokeDasharray={`${pct * 100} 100`}
+            strokeDasharray={`${arcPct * 100} 100`}
             style={{
               filter: "drop-shadow(0 0 6px var(--color-mint-glow))",
-              transition: "stroke-dasharray 480ms var(--ease-premium)",
+              transition:
+                "stroke-dasharray 700ms cubic-bezier(0.33, 1, 0.68, 1)",
             }}
           />
         </svg>
@@ -122,7 +135,11 @@ export default function SleepSection() {
             className="mono text-4xl tabular-nums"
             style={{ color: today != null ? "var(--color-mint)" : "var(--color-muted)" }}
           >
-            {today != null ? fmtHours(today) : "—"}
+            {today != null ? (
+              <CountUp value={today} format={fmtHours} restartKey={state} />
+            ) : (
+              "—"
+            )}
           </span>
           <span className="mono mt-0.5 text-[0.68rem] text-muted">
             / {goal} hrs goal

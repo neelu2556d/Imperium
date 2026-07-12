@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { UndoIcon } from "@/components/train/session/icons";
+import { useEffect, useRef, useState } from "react";
+import { CheckIcon, UndoIcon } from "@/components/train/session/icons";
+import CountUp from "@/components/motion/CountUp";
 import { formatWeight, toRoman } from "@/lib/train/overload";
 
 export interface SetRowProps {
@@ -46,6 +47,22 @@ export default function SetRow({
   const [rpe, setRpe] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
 
+  // Detect the unlogged → logged transition so the mint card can flash and its
+  // checkmark can pop in exactly once (not on every re-render of a logged set,
+  // e.g. when its neighbours change).
+  const wasLogged = useRef(logged != null);
+  const [justLogged, setJustLogged] = useState(false);
+  useEffect(() => {
+    const isLogged = logged != null;
+    if (isLogged && !wasLogged.current) {
+      setJustLogged(true);
+      const id = setTimeout(() => setJustLogged(false), 600);
+      wasLogged.current = isLogged;
+      return () => clearTimeout(id);
+    }
+    wasLogged.current = isLogged;
+  }, [logged]);
+
   const roman = toRoman(index);
 
   const confirm = async () => {
@@ -68,7 +85,9 @@ export default function SetRow({
         type="button"
         data-no-vitality
         onClick={() => setOpen(true)}
-        className="flex w-full items-center gap-4 rounded-2xl border-0 px-5 py-4 text-left transition-transform active:scale-[0.99]"
+        className={`flex w-full items-center gap-4 rounded-2xl border-0 px-5 py-4 text-left transition-transform active:scale-[0.99] ${
+          justLogged ? "vt-set-flash" : ""
+        }`}
         style={{ background: "var(--color-mint)", color: "var(--color-mint-ink)" }}
         aria-label={`Edit set ${roman}`}
       >
@@ -87,6 +106,14 @@ export default function SetRow({
             kg
           </span>
           <span className="ml-1.5 text-lg leading-none">× {logged.reps}</span>
+        </span>
+        {/* checkmark fades in + scales up from 0 on the moment it's logged */}
+        <span
+          className={justLogged ? "vt-check-pop" : undefined}
+          style={{ display: "inline-flex" }}
+          aria-hidden
+        >
+          <CheckIcon size={18} />
         </span>
         <span className="serif-italic text-sm" data-no-vitality>
           done
@@ -118,7 +145,11 @@ export default function SetRow({
         </span>
         <span className="flex flex-1 items-baseline gap-1 text-muted-strong">
           <span className="text-2xl font-semibold tabular-nums leading-none">
-            {suggestedWeight != null ? formatWeight(suggestedWeight) : "—"}
+            {suggestedWeight != null ? (
+              <CountUp value={suggestedWeight} format={formatWeight} />
+            ) : (
+              "—"
+            )}
           </span>
           <span className="serif-italic text-xs text-muted" data-no-vitality>
             kg

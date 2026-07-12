@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import ImperiumGem from "@/components/welcome/ImperiumGem";
 import VitalityTile from "@/components/home/VitalityTile";
+import CountUp from "@/components/motion/CountUp";
 import WireArt from "@/components/home/tileart/WireArt";
 import RingArt from "@/components/home/tileart/RingArt";
 import BarsArt from "@/components/home/tileart/BarsArt";
@@ -95,10 +96,18 @@ export default function HomeDashboard() {
   const sleepProgress = sleepLatest != null ? sleepLatest / 8 : 0;
   const fuel = data?.fuel;
 
+  // Bento entrance: the greeting rises first (200ms delay, handled in CSS),
+  // then the four tiles stagger in 80ms apart. Card 01 begins just after the
+  // greeting starts moving; the rest follow. Delay is passed as a CSS var the
+  // .vt-bento-card keyframe reads.
+  const cardStagger = (i: number): CSSProperties => ({
+    ["--vt-stagger" as string]: `${280 + i * 80}ms`,
+  });
+
   return (
     <div className="w-full px-5 pb-10 pt-8 md:px-8 lg:px-12 lg:pt-10">
       {/* ---------- greeting ---------- */}
-      <header className="mb-6 flex items-center gap-4 md:mb-8 md:gap-6">
+      <header className="vt-bento-greet mb-6 flex items-center gap-4 md:mb-8 md:gap-6">
         <ImperiumGem
           size={84}
           showChevron={false}
@@ -126,6 +135,8 @@ export default function HomeDashboard() {
       <div className="vee-grid">
         {/* 01 — TRAIN */}
         <VitalityTile
+          className="vt-bento-card"
+          style={cardStagger(0)}
           area="area-train"
           variant="tile-train"
           index="01"
@@ -148,6 +159,8 @@ export default function HomeDashboard() {
 
         {/* 02 — VITALS */}
         <VitalityTile
+          className="vt-bento-card"
+          style={cardStagger(1)}
           area="area-vitals"
           variant="tile-vitals"
           index="02"
@@ -168,12 +181,20 @@ export default function HomeDashboard() {
 
         {/* 03 — FUEL */}
         <VitalityTile
+          className="vt-bento-card"
+          style={cardStagger(2)}
           area="area-fuel"
           variant="tile-fuel"
           index="03"
           glyph={<FlameIcon size={18} />}
           label="Fuel"
-          stat={fuel?.hasData ? String(Math.round(fuel.calories)) : "0"}
+          stat={
+            fuel?.hasData ? (
+              <CountUp value={Math.round(fuel.calories)} restartKey={fuel} />
+            ) : (
+              "0"
+            )
+          }
           unit="kcal"
           art={<BarsArt values={data?.fuelSeries ?? []} />}
           href="/fuel"
@@ -186,7 +207,7 @@ export default function HomeDashboard() {
         />
 
         {/* 04 — IMPERIUM (brand centrepiece) */}
-        <BrandTile />
+        <BrandTile className="vt-bento-card" style={cardStagger(3)} />
       </div>
     </div>
   );
@@ -197,14 +218,21 @@ export default function HomeDashboard() {
  * opening the AI mentor. Special-cased because its layout centres the gem
  * rather than using the index/stat/label chrome of the data tiles.
  */
-function BrandTile() {
+function BrandTile({
+  className = "",
+  style,
+}: {
+  className?: string;
+  style?: CSSProperties;
+}) {
   const router = useRouter();
   return (
     <div
       role="button"
       tabIndex={0}
       aria-label="Open Imperium AI mentor"
-      className="vee-tile tile-brand area-brand"
+      className={`vee-tile tile-brand area-brand ${className}`}
+      style={style}
       onClick={() => router.push("/mentor")}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {

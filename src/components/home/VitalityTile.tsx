@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type ReactNode } from "react";
+import { useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 
 interface VitalityTileProps {
@@ -15,8 +15,12 @@ interface VitalityTileProps {
   /** Serif-italic label shown bottom-left, e.g. "Train". */
   label: string;
   /** Mono stat above the label; `unit` renders as a small-caps suffix. */
-  stat?: string;
+  stat?: ReactNode;
   unit?: string;
+  /** Extra classes merged onto the tile shell (e.g. the entrance animation). */
+  className?: string;
+  /** Inline style merged onto the tile shell (e.g. the stagger delay). */
+  style?: CSSProperties;
   /** The animated art layer filling the tile. */
   art: ReactNode;
   /** Route to open on tap. */
@@ -49,6 +53,8 @@ export default function VitalityTile({
   ariaLabel,
   summary,
   warn = false,
+  className = "",
+  style,
 }: VitalityTileProps) {
   const router = useRouter();
   const [showSummary, setShowSummary] = useState(false);
@@ -91,7 +97,8 @@ export default function VitalityTile({
       role="button"
       tabIndex={0}
       aria-label={ariaLabel}
-      className={`vee-tile ${area} ${variant} ${warn ? "is-warn" : ""}`}
+      className={`vee-tile ${area} ${variant} ${warn ? "is-warn" : ""} ${className}`}
+      style={style}
       onClick={navigate}
       onKeyDown={handleKeyDown}
       onPointerDown={handlePointerDown}

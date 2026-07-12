@@ -334,7 +334,7 @@ select,
   transition: background var(--duration-DEFAULT) var(--ease-DEFAULT),
     border-color var(--duration-DEFAULT) var(--ease-DEFAULT),
     color var(--duration-DEFAULT) var(--ease-DEFAULT),
-    transform var(--duration-fast) var(--ease-DEFAULT);
+    transform var(--duration-DEFAULT) var(--ease-premium);
 }
 
 :where(button, .btn, [role="button"]):not([data-no-vitality]):hover {
@@ -344,7 +344,16 @@ select,
 }
 
 :where(button, .btn, [role="button"]):not([data-no-vitality]):active {
-  transform: translateY(1px);
+  /* tactile press: quick scale-down (120ms) in, premium ease back out (180ms,
+     from the base transition above) */
+  transform: scale(0.96);
+  transition: transform var(--duration-fast) var(--ease-out-soft);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :where(button, .btn, [role="button"]):not([data-no-vitality]):active {
+    transform: none;
+  }
 }
 
 :where(button, .btn):not([data-no-vitality]):disabled {
@@ -535,18 +544,18 @@ select,
   }
 }
 
-/* ----- training wizard: 300ms slide transitions between steps ----- */
+/* ----- training wizard: 280ms slide transitions between steps ----- */
 .vt-anim-in-fwd {
-  animation: vtSlideInFwd 300ms var(--ease-premium) both;
+  animation: vtSlideInFwd 280ms var(--ease-premium) both;
 }
 .vt-anim-out-fwd {
-  animation: vtSlideOutFwd 300ms var(--ease-premium) both;
+  animation: vtSlideOutFwd 280ms var(--ease-premium) both;
 }
 .vt-anim-in-back {
-  animation: vtSlideInBack 300ms var(--ease-premium) both;
+  animation: vtSlideInBack 280ms var(--ease-premium) both;
 }
 .vt-anim-out-back {
-  animation: vtSlideOutBack 300ms var(--ease-premium) both;
+  animation: vtSlideOutBack 280ms var(--ease-premium) both;
 }
 
 @keyframes vtSlideInFwd {
@@ -783,7 +792,7 @@ select,
 .spark-line {
   stroke-dasharray: 1 1;
   stroke-dashoffset: 1;
-  animation: sparkDraw 1.1s var(--ease-out-soft) forwards;
+  animation: sparkDraw 800ms cubic-bezier(0.65, 0, 0.35, 1) forwards;
 }
 
 .spark-flow {
@@ -792,10 +801,30 @@ select,
   animation: sparkFlow 2.8s linear 0.9s infinite;
 }
 
+/* end dot: fades + scales in after the line finishes drawing (800ms delay,
+   200ms), then the halo settles into its slow breathe */
 .spark-dot-halo {
   transform-box: fill-box;
   transform-origin: center;
-  animation: sparkPulse 2.4s var(--ease-DEFAULT) infinite;
+  animation: sparkDotIn 200ms var(--ease-premium) 800ms backwards,
+    sparkPulse 2.4s var(--ease-DEFAULT) 1000ms infinite;
+}
+
+.spark-dot-core {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: sparkDotIn 200ms var(--ease-premium) 800ms backwards;
+}
+
+@keyframes sparkDotIn {
+  from {
+    opacity: 0;
+    transform: scale(0);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .spark-empty {
@@ -838,8 +867,11 @@ select,
     stroke-dashoffset: 0;
   }
   .spark-dot-halo,
+  .spark-dot-core,
   .spark-empty {
     animation: none;
+    opacity: 1;
+    transform: none;
   }
   .spark-flow {
     display: none;
@@ -1030,7 +1062,8 @@ select,
 }
 
 .vee-tile:active {
-  transform: scale(0.985);
+  transform: scale(0.97);
+  transition: transform var(--duration-fast) var(--ease-out-soft);
 }
 
 /* soft radial glow high on the tile */
@@ -1343,5 +1376,399 @@ select,
   }
   .vee-bar {
     transform: scaleY(1);
+  }
+}
+
+/* =========================================================================
+   Motion pass — app-wide animations & transitions.
+   Every block below has a matching prefers-reduced-motion override at the very
+   end of this section so a user who asks motion off gets an instant, static UI.
+   Purely visual motion lives here in CSS; JS-driven counts/sweeps live in
+   lib/motion.ts and honour the same media query.
+   ========================================================================= */
+
+/* ----- 1. page / route transitions -----
+   `backwards` (not `both`): the wrapper must NOT retain a transform once the
+   entrance finishes — a lingering transform/opacity would make position:fixed
+   bottom-sheets rendered inside a page resolve against this wrapper instead of
+   the viewport. Reverting to the element's own (untransformed) styles avoids
+   that containing-block trap. */
+.vt-page-enter {
+  animation: vtPageEnter 300ms var(--ease-premium) backwards;
+  will-change: transform, opacity;
+}
+@keyframes vtPageEnter {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+/* the short exit beat, applied to a page on its way out */
+.vt-page-exit {
+  animation: vtPageExit 180ms var(--ease-DEFAULT) both;
+}
+@keyframes vtPageExit {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+/* ----- 2. home bento — greeting + staggered card entrance -----
+   The greeting rises first (200ms delay); the four tiles then stagger in at
+   80ms intervals via --vt-stagger set inline per card. */
+.vt-bento-greet {
+  animation: vtBentoRise 480ms var(--ease-premium) 200ms backwards;
+}
+/* `backwards` (not `both`): holds the hidden start-state through the stagger
+   delay, then reverts to the tile's own styles so its :active press-scale still
+   works once the entrance finishes. */
+.vt-bento-card {
+  animation: vtBentoCard 480ms var(--ease-premium) var(--vt-stagger, 0ms)
+    backwards;
+}
+@keyframes vtBentoRise {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes vtBentoCard {
+  from {
+    opacity: 0;
+    transform: translateY(24px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ----- 4. charts / sparklines — draw-on + end-dot pop -----
+   Generic draw class for line charts that carry a JS-measured --vt-len. The
+   sparkline keeps its own .spark-line; this covers the overload / weight charts
+   and the sleep gauge sweep. */
+.vt-draw {
+  stroke-dasharray: var(--vt-len, 1000);
+  stroke-dashoffset: var(--vt-len, 1000);
+  animation: vtDraw 800ms cubic-bezier(0.65, 0, 0.35, 1) forwards;
+}
+@keyframes vtDraw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+/* left→right clip wipe: reveals a whole line group (e.g. the dual-line overload
+   chart) at once, without borrowing stroke-dashoffset from dashed lines. The
+   clip rect starts at x=0, so a userspace transform-origin of 0,0 anchors the
+   scaleX to the left edge (no fill-box needed — unreliable inside clipPath). */
+.vt-wipe {
+  transform-origin: 0 0;
+  animation: vtWipe 800ms cubic-bezier(0.65, 0, 0.35, 1) forwards;
+}
+@keyframes vtWipe {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/* end-of-line dot: fades + scales up after the line finishes drawing */
+.vt-draw-dot {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: vtDrawDot 200ms var(--ease-premium) 800ms both;
+}
+@keyframes vtDrawDot {
+  from {
+    opacity: 0;
+    transform: scale(0);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* ----- 6. water fill — ripple wave at the surface -----
+   A gentle sine path oscillating horizontally; amplitude lives in the path
+   itself, the loop just slides it one wavelength. */
+.vt-water-wave {
+  animation: vtWaterWave 3s linear infinite;
+}
+@keyframes vtWaterWave {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-24px);
+  }
+}
+
+/* ----- 8. tactile press for buttons/cards without an active: rule already ----- */
+.vt-press {
+  transition: transform var(--duration-DEFAULT) var(--ease-premium);
+}
+.vt-press:active {
+  transform: scale(0.96);
+  transition: transform var(--duration-fast) var(--ease-out-soft);
+}
+.vt-press-card:active {
+  transform: scale(0.97);
+  transition: transform var(--duration-fast) var(--ease-out-soft);
+}
+
+/* ----- 8. HIT IT -> : mint flash + checkmark pop on log ----- */
+.vt-set-flash {
+  animation: vtSetFlash 200ms var(--ease-DEFAULT) both;
+}
+@keyframes vtSetFlash {
+  0% {
+    background: transparent;
+  }
+  50% {
+    background: rgba(110, 231, 183, 0.25);
+  }
+  100% {
+    background: transparent;
+  }
+}
+.vt-check-pop {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: vtCheckPop 300ms var(--ease-premium) both;
+}
+@keyframes vtCheckPop {
+  from {
+    opacity: 0;
+    transform: scale(0);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* ----- 9. exercise complete — header mint glow pulse ----- */
+.vt-header-glow {
+  animation: vtHeaderGlow 600ms var(--ease-DEFAULT) both;
+}
+@keyframes vtHeaderGlow {
+  0% {
+    box-shadow: 0 0 0 0 rgba(110, 231, 183, 0);
+  }
+  50% {
+    box-shadow: 0 0 12px 0 rgba(110, 231, 183, 0.6);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(110, 231, 183, 0);
+  }
+}
+
+/* ----- 9. finish-session — mint particle burst behind the gem ----- */
+.vt-particle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  margin: -4px 0 0 -4px;
+  border-radius: 50%;
+  background: var(--color-mint);
+  box-shadow: 0 0 8px var(--color-mint-glow);
+  opacity: 0;
+  animation: vtParticle 1100ms var(--ease-out-soft) 120ms both;
+}
+@keyframes vtParticle {
+  0% {
+    opacity: 1;
+    transform: rotate(var(--vt-angle, 0deg)) translateX(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(var(--vt-angle, 0deg)) translateX(var(--vt-dist, 90px))
+      scale(0.3);
+  }
+}
+
+/* ----- 10. bottom sheet — slide up / down + backdrop fade ----- */
+.vt-sheet-backdrop {
+  animation: vtBackdropIn 400ms var(--ease-premium) both;
+}
+.vt-sheet-backdrop.vt-closing {
+  animation: vtBackdropOut 300ms var(--ease-DEFAULT) both;
+}
+@keyframes vtBackdropIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes vtBackdropOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+.vt-sheet-panel {
+  animation: vtSheetIn 400ms var(--ease-premium) both;
+  will-change: transform;
+}
+.vt-sheet-panel.vt-closing {
+  animation: vtSheetOut 300ms var(--ease-DEFAULT) both;
+}
+@keyframes vtSheetIn {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+@keyframes vtSheetOut {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(100%);
+  }
+}
+
+/* ----- 12. bottom nav — sliding active indicator + icon bounce ----- */
+.vt-nav-indicator {
+  transition: transform 300ms var(--ease-premium);
+}
+.vt-nav-bounce {
+  animation: vtNavBounce 300ms var(--ease-premium);
+}
+@keyframes vtNavBounce {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.15);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* ----- 13. toast — rise-in, and a depleting mint progress bar ----- */
+.vt-toast-in {
+  animation: vtToastIn 200ms var(--ease-premium) both;
+}
+.vt-toast-out {
+  animation: vtToastOut 200ms var(--ease-premium) both;
+}
+@keyframes vtToastIn {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes vtToastOut {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+}
+.vt-toast-bar {
+  transform-origin: left center;
+  animation: vtToastBar 3s linear both;
+}
+@keyframes vtToastBar {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
+/* ----- 14. deload — smooth mint<->blue token crossfade ----- */
+.vt-deload-fade,
+.vt-deload-fade * {
+  transition: color 600ms ease, background-color 600ms ease,
+    border-color 600ms ease, box-shadow 600ms ease, fill 600ms ease,
+    stroke 600ms ease;
+}
+
+/* ----- reduced-motion: collapse every motion-pass animation ----- */
+@media (prefers-reduced-motion: reduce) {
+  .vt-page-enter,
+  .vt-page-exit,
+  .vt-bento-greet,
+  .vt-bento-card,
+  .vt-draw,
+  .vt-draw-dot,
+  .vt-set-flash,
+  .vt-check-pop,
+  .vt-header-glow,
+  .vt-particle,
+  .vt-sheet-backdrop,
+  .vt-sheet-panel,
+  .vt-toast-in,
+  .vt-toast-out,
+  .vt-nav-bounce {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+  .vt-water-wave,
+  .vt-toast-bar {
+    animation: none !important;
+  }
+  .vt-draw {
+    stroke-dashoffset: 0 !important;
+  }
+  .vt-wipe {
+    animation: none !important;
+    transform: none !important;
+  }
+  .vt-draw-dot,
+  .vt-bento-greet,
+  .vt-bento-card,
+  .vt-check-pop {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  .vt-particle {
+    opacity: 0 !important;
+  }
+  .vt-press,
+  .vt-press-card,
+  .vt-nav-indicator,
+  .vt-deload-fade,
+  .vt-deload-fade * {
+    transition-duration: 0.01ms !important;
+  }
+  .vt-press:active,
+  .vt-press-card:active {
+    transform: none;
   }
 }

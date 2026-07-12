@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import SetRow from "@/components/train/session/SetRow";
 import {
+  CheckIcon,
   DotIcon,
   HistoryIcon,
   InfoIcon,
@@ -65,6 +66,24 @@ export default function ExerciseCard({
   const [showTune, setShowTune] = useState(false);
   const [favorite, setFavorite] = useState(false);
 
+  // "All sets in" — every prescribed set number 1..setCount has a logged entry.
+  let doneCount = 0;
+  for (let s = 1; s <= setCount; s += 1) if (logged.has(s)) doneCount += 1;
+  const allLogged = setCount > 0 && doneCount >= setCount;
+
+  // Glow the header once, on the beat the exercise becomes fully logged.
+  const wasComplete = useRef(allLogged);
+  const [justComplete, setJustComplete] = useState(false);
+  useEffect(() => {
+    if (allLogged && !wasComplete.current) {
+      setJustComplete(true);
+      const id = setTimeout(() => setJustComplete(false), 600);
+      wasComplete.current = allLogged;
+      return () => clearTimeout(id);
+    }
+    wasComplete.current = allLogged;
+  }, [allLogged]);
+
   const suggestion = suggestWeight({
     last: exercise.last,
     isCompound: exercise.isCompound,
@@ -99,9 +118,22 @@ export default function ExerciseCard({
         />
       </div>
 
-      <div className="card p-4" data-no-vitality>
+      <div
+        className={`card p-4 ${justComplete ? "vt-header-glow" : ""}`}
+        data-no-vitality
+      >
         {/* header: name + info */}
         <div className="flex items-center gap-2">
+          {/* mint check fades in on the left once every set is logged */}
+          {allLogged && (
+            <span
+              className={`shrink-0 ${justComplete ? "vt-check-pop" : ""}`}
+              style={{ color: "var(--color-mint)", display: "inline-flex" }}
+              aria-hidden
+            >
+              <CheckIcon size={18} />
+            </span>
+          )}
           <h3 className="serif-italic truncate text-2xl leading-tight" data-no-vitality>
             {exercise.name}
           </h3>

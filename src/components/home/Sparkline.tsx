@@ -109,7 +109,7 @@ export default function Sparkline({
           style={{ filter: `drop-shadow(0 0 3px ${glowColor})` }}
         />
       )}
-      {/* soft glow halo */}
+      {/* soft glow halo — fades + scales in once the line finishes drawing */}
       <circle
         cx={lastX}
         cy={lastY}
@@ -118,8 +118,14 @@ export default function Sparkline({
         opacity="0.9"
         className={animate ? "spark-dot-halo" : undefined}
       />
-      {/* solid dot */}
-      <circle cx={lastX} cy={lastY} r="2.2" fill={color} />
+      {/* solid dot — same delayed pop as the halo */}
+      <circle
+        cx={lastX}
+        cy={lastY}
+        r="2.2"
+        fill={color}
+        className={animate ? "spark-dot-core" : undefined}
+      />
     </svg>
   );
 }

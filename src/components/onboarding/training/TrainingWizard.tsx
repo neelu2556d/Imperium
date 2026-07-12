@@ -95,7 +95,7 @@ export default function TrainingWizard({ initialStep }: { initialStep: number })
     setIndex(nextIndex);
     syncUrl(nextIndex + 1);
     if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => setTransition(null), 300);
+    timer.current = setTimeout(() => setTransition(null), 280);
   };
 
   const persist = (i: number) => {
@@ -193,7 +193,7 @@ export default function TrainingWizard({ initialStep }: { initialStep: number })
           style={{
             width: `${progress}%`,
             background: "var(--color-mint)",
-            transition: "width 300ms var(--ease-premium)",
+            transition: "width 400ms var(--ease-out-soft)",
           }}
         />
       </div>

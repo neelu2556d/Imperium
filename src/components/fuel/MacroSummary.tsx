@@ -5,6 +5,7 @@ import FuelRing, {
   CARBS_COLOR,
   FAT_COLOR,
 } from "@/components/fuel/FuelRing";
+import CountUp from "@/components/motion/CountUp";
 import { formatToday } from "@/lib/home/datetime";
 import type { NutritionGoals } from "@/lib/supabase/nutrition";
 
@@ -105,7 +106,7 @@ export default function MacroSummary({ totals, goals }: MacroSummaryProps) {
               className="mono mt-1.5 text-sm tabular-nums"
               style={{ color: p.color }}
             >
-              {Math.round(p.logged)}
+              <CountUp value={Math.round(p.logged)} />
               <span className="text-muted">g</span>
             </span>
             <span className="mono text-[0.65rem] text-muted">

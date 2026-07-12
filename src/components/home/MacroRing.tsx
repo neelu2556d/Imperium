@@ -1,3 +1,9 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import CountUp from "@/components/motion/CountUp";
+import { useReducedMotion } from "@/lib/motion";
+
 interface MacroRingProps {
   /** Calories logged today. */
   calories: number;
@@ -22,9 +28,18 @@ export default function MacroRing({
   const circumference = 2 * Math.PI * radius;
   const center = size / 2;
 
+  const reduced = useReducedMotion();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setMounted(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
+  const swept = mounted || reduced;
+
   const fraction =
     goalCalories > 0 ? Math.max(0, Math.min(1, calories / goalCalories)) : 0;
-  const dash = fraction * circumference;
+  // 0 until the mount frame flips `swept`, so the arc sweeps up (700ms cubic).
+  const dash = (swept ? fraction : 0) * circumference;
 
   return (
     <div className="relative" style={{ width: size, height: size }}>
@@ -48,15 +63,17 @@ export default function MacroRing({
             strokeLinecap="round"
             strokeDasharray={`${dash} ${circumference - dash}`}
             style={{
-              transition: "stroke-dasharray 400ms var(--ease-DEFAULT)",
+              transition:
+                "stroke-dasharray 700ms cubic-bezier(0.33, 1, 0.68, 1)",
             }}
           />
         </g>
       </svg>
       <div className="absolute inset-0 flex items-center justify-center">
-        <span className="mono text-[0.72rem] font-semibold leading-none">
-          {Math.round(calories)}
-        </span>
+        <CountUp
+          value={Math.round(calories)}
+          className="mono text-[0.72rem] font-semibold leading-none"
+        />
       </div>
     </div>
   );

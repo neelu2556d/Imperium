@@ -4,6 +4,7 @@ import "./globals.css";
 import BottomNav from "@/components/BottomNav";
 import VitalityBackdrop from "@/components/VitalityBackdrop";
 import Toaster from "@/components/Toaster";
+import PageTransition from "@/components/motion/PageTransition";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -50,7 +51,9 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         <VitalityBackdrop />
-        <main className="flex-1 pb-20">{children}</main>
+        <main className="flex-1 pb-20">
+          <PageTransition>{children}</PageTransition>
+        </main>
         <BottomNav />
         <Toaster />
       </body>

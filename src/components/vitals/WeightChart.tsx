@@ -228,6 +228,8 @@ function Plot({
           );
         })}
 
+        {/* draws left→right on mount (800ms easeInOut) via pathLength
+            normalisation — no JS measurement needed */}
         <path
           d={path}
           fill="none"
@@ -235,6 +237,9 @@ function Plot({
           strokeWidth="2"
           strokeLinecap="round"
           strokeLinejoin="round"
+          pathLength={1}
+          className="vt-draw"
+          style={{ ["--vt-len" as string]: "1" }}
         />
 
         {points.map((p, i) =>

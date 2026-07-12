@@ -13,8 +13,9 @@ export interface Toast {
   message: string;
 }
 
-/** How long a toast stays up before auto-dismissing. */
-const TOAST_TTL_MS = 5000;
+/** How long a toast stays up before auto-dismissing (matches the toast's
+ *  depleting progress-bar animation). */
+const TOAST_TTL_MS = 3000;
 /** Identical messages fired inside this window collapse into one. */
 const DEDUPE_MS = 4000;
 /** Never stack more than this many at once. */

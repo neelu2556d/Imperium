@@ -407,27 +407,44 @@ function Chart({ points, width, height, active, onActivate }: ChartProps) {
           );
         })}
 
-        {/* volume — ghost mint dashed (secondary axis) */}
-        <path
-          d={volumePath}
-          fill="none"
-          stroke="var(--color-mint-soft)"
-          strokeWidth="1.6"
-          strokeDasharray="4 4"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          opacity="0.45"
-        />
+        {/* Both lines draw left→right on tab entry, simultaneously (800ms
+            easeInOut). A left-anchored clip rect wipes across, which reveals the
+            solid and dashed lines together without disturbing the volume line's
+            dash pattern (stroke-dashoffset can't be borrowed here). */}
+        <defs>
+          <clipPath id="og-reveal">
+            <rect
+              className="vt-wipe"
+              x={0}
+              y={0}
+              width={width}
+              height={height}
+            />
+          </clipPath>
+        </defs>
+        <g clipPath="url(#og-reveal)">
+          {/* volume — ghost mint dashed (secondary axis) */}
+          <path
+            d={volumePath}
+            fill="none"
+            stroke="var(--color-mint-soft)"
+            strokeWidth="1.6"
+            strokeDasharray="4 4"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            opacity="0.45"
+          />
 
-        {/* weight — solid mint (primary axis) */}
-        <path
-          d={weightPath}
-          fill="none"
-          stroke="var(--color-mint)"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
+          {/* weight — solid mint (primary axis) */}
+          <path
+            d={weightPath}
+            fill="none"
+            stroke="var(--color-mint)"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </g>
 
         {/* x-axis date labels */}
         {points.map((p, i) =>

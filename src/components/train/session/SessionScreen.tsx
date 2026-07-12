@@ -53,6 +53,16 @@ export default function SessionScreen({ dayId }: { dayId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [finishing, setFinishing] = useState(false);
   const [celebrating, setCelebrating] = useState(false);
+  // True for the 600ms after a deload toggle: enables a smooth colour
+  // transition on the whole subtree (mint ↔ blue) without slowing ordinary
+  // hovers the rest of the time.
+  const [deloadFading, setDeloadFading] = useState(false);
+
+  const toggleDeload = () => {
+    setDeloadFading(true);
+    setDeload((v) => !v);
+    window.setTimeout(() => setDeloadFading(false), 650);
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -226,7 +236,9 @@ export default function SessionScreen({ dayId }: { dayId: string }) {
 
   return (
     <div
-      className="relative w-full px-5 pb-40 pt-8 md:px-8 lg:px-12"
+      className={`relative w-full px-5 pb-40 pt-8 md:px-8 lg:px-12 ${
+        deloadFading ? "vt-deload-fade" : ""
+      }`}
       style={deload ? DELOAD_VARS : undefined}
     >
       {/* ---------- top bar ---------- */}
@@ -315,7 +327,7 @@ export default function SessionScreen({ dayId }: { dayId: string }) {
           data-no-vitality
           role="switch"
           aria-checked={deload}
-          onClick={() => setDeload((v) => !v)}
+          onClick={toggleDeload}
           className="flex items-center justify-between rounded-xl border p-4 text-left"
           style={{
             borderColor: deload ? "var(--color-mint)" : "var(--color-border-strong)",
@@ -392,8 +404,21 @@ export default function SessionScreen({ dayId }: { dayId: string }) {
           style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }}
           aria-hidden
         >
-          <div className="vt-celebrate">
-            <ImperiumGem size={120} showChevron={false} />
+          <div className="relative flex items-center justify-center">
+            {/* burst of mint particles radiating outward behind the gem */}
+            {Array.from({ length: 10 }, (_, i) => (
+              <span
+                key={i}
+                className="vt-particle"
+                style={{
+                  ["--vt-angle" as string]: `${(360 / 10) * i}deg`,
+                  ["--vt-dist" as string]: `${96 + (i % 3) * 18}px`,
+                }}
+              />
+            ))}
+            <div className="vt-celebrate">
+              <ImperiumGem size={120} showChevron={false} />
+            </div>
           </div>
         </div>
       )}

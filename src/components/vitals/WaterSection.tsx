@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import SectionCard from "@/components/vitals/SectionCard";
 import EditGoalSheet from "@/components/vitals/EditGoalSheet";
 import BottomSheet from "@/components/vitals/BottomSheet";
+import CountUp from "@/components/motion/CountUp";
+import { useReducedMotion } from "@/lib/motion";
 import { DropletIcon } from "@/components/vitals/icons";
 import {
   addWater,
@@ -79,7 +81,7 @@ export default function WaterSection() {
 
         <div className="min-w-0 flex-1">
           <p className="mono text-3xl tabular-nums" style={{ color: "var(--color-mint)" }}>
-            {fmtL(total)}L
+            <CountUp value={total} suffix="L" format={fmtL} restartKey={state} />
           </p>
           <p className="mono mt-1 text-sm text-muted">/ {fmtL(goal)}L goal</p>
           <p className="mono mt-3 text-[0.7rem] text-muted">
@@ -193,7 +195,18 @@ function WaterBottle({ pct }: { pct: number }) {
   // Bottle inner region: x 8..40, y 16..104 (viewBox 48x116).
   const innerTop = 16;
   const innerBottom = 104;
-  const fillTop = innerBottom - (innerBottom - innerTop) * pct;
+
+  const reduced = useReducedMotion();
+  // Rise from empty on mount: paint at 0, flip to the real level next frame so
+  // the CSS transition animates the water up (900ms easeOutCubic).
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setMounted(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
+  const shownPct = mounted || reduced ? pct : 0;
+  const fillTop = innerBottom - (innerBottom - innerTop) * shownPct;
+  const easeOutCubic = "cubic-bezier(0.33, 1, 0.68, 1)";
 
   return (
     <svg width="52" height="120" viewBox="0 0 48 116" aria-hidden className="shrink-0">
@@ -207,15 +220,28 @@ function WaterBottle({ pct }: { pct: number }) {
       {/* fill (clipped to bottle shape) */}
       <g clipPath={`url(#${clipId})`}>
         <rect x="0" y="0" width="48" height="116" fill="var(--color-card-elevated)" />
-        <rect
-          x="0"
-          y={fillTop}
-          width="48"
-          height={innerBottom - fillTop + 2}
-          fill="var(--color-mint)"
-          opacity="0.85"
-          style={{ transition: "y 480ms var(--ease-premium), height 480ms var(--ease-premium)" }}
-        />
+        {/* the group rises to the surface; both the body rect and the ripple
+            wave translate together so the wave rides the water line */}
+        <g
+          style={{
+            transform: `translateY(${fillTop}px)`,
+            transition: `transform 900ms ${easeOutCubic}`,
+          }}
+        >
+          {/* rippling surface: a sine wave path wider than the bottle so it can
+              slide one wavelength on loop without exposing an edge. Amplitude
+              ~3px around y=0 (the water line). */}
+          {shownPct > 0.02 && (
+            <path
+              className="vt-water-wave"
+              d="M -24 0 q 6 -3 12 0 t 12 0 t 12 0 t 12 0 t 12 0 t 12 0 t 12 0 v 120 h -96 z"
+              fill="var(--color-mint)"
+              opacity="0.85"
+            />
+          )}
+          {/* solid body below the wave, tall enough to always reach the base */}
+          <rect x="-24" y="0" width="96" height={innerBottom + 4} fill="var(--color-mint)" opacity="0.85" />
+        </g>
       </g>
 
       {/* bottle outline */}

@@ -261,7 +261,7 @@ export default function PickExercisesScreen() {
               className="shrink-0 whitespace-nowrap rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors"
               style={{
                 borderColor: active ? "var(--color-mint)" : "var(--color-border-strong)",
-                background: active ? "rgba(110,231,183,0.10)" : "transparent",
+                background: active ? "rgb(var(--accent-rgb) / 0.10)" : "transparent",
                 color: active ? "var(--color-mint)" : "var(--color-muted-strong)",
               }}
               aria-pressed={active}
@@ -326,7 +326,7 @@ export default function PickExercisesScreen() {
                   data-no-vitality
                   disabled={already}
                   onClick={() => addPick(hit)}
-                  className="flex w-full items-center gap-3 border-0 border-b bg-transparent px-3 py-2.5 text-left transition-colors last:border-b-0 hover:bg-[rgba(110,231,183,0.08)] disabled:opacity-40"
+                  className="flex w-full items-center gap-3 border-0 border-b bg-transparent px-3 py-2.5 text-left transition-colors last:border-b-0 hover:bg-[rgb(var(--accent-rgb)_/_0.08)] disabled:opacity-40"
                   style={{ borderColor: "var(--color-border)" }}
                 >
                   <span className="text-muted">
@@ -369,7 +369,7 @@ export default function PickExercisesScreen() {
         </h2>
         <span
           className="inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full px-1.5 text-xs font-semibold"
-          style={{ background: "rgba(110,231,183,0.14)", color: "var(--color-mint)" }}
+          style={{ background: "rgb(var(--accent-rgb) / 0.14)", color: "var(--color-mint)" }}
         >
           {picks.length}
         </span>

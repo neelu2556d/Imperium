@@ -5,12 +5,32 @@
   --color-bg-elevated: #0a0a0a;
   --color-fg: #ffffff;
 
-  --color-mint: #6ee7b7;
-  --color-mint-hover: #5dd6a6;
-  --color-mint-deep: #1f4d3d;
-  --color-mint-glow: rgba(110, 231, 183, 0.4);
-  --color-mint-ink: #042a1c;
-  --color-mint-soft: #a7f3d0;
+  /* ---- accent palette ----
+     The single source of truth for the app's accent colour. `data-theme` on
+     <html> swaps these seven tokens (+ the two rgb triplets) and everything
+     recolours instantly, because the whole design system reads the mint tokens
+     below — which now derive from these — and Tailwind's `accent` utilities map
+     here too. The default set is Mint Green; the [data-theme] blocks lower down
+     override them. `--accent-rgb` / `--accent-soft-rgb` let alpha-varied rgba()
+     literals recolour while keeping their exact opacities. */
+  --accent: #6ee7b7;
+  --accent-hover: #5dd6a6;
+  --accent-deep: #1f4d3d;
+  --accent-glow: rgba(110, 231, 183, 0.4);
+  --accent-ink: #042a1c;
+  --accent-soft: #a7f3d0;
+  --aurora-color: rgba(110, 231, 183, 0.08);
+  --accent-rgb: 110 231 183;
+  --accent-soft-rgb: 167 243 208;
+
+  /* the mint tokens the codebase already consumes, remapped onto the accent
+     palette so no call site needs to change */
+  --color-mint: var(--accent);
+  --color-mint-hover: var(--accent-hover);
+  --color-mint-deep: var(--accent-deep);
+  --color-mint-glow: var(--accent-glow);
+  --color-mint-ink: var(--accent-ink);
+  --color-mint-soft: var(--accent-soft);
 
   --color-amber: #f59e0b;
   --color-amber-warm: #d97706;
@@ -45,6 +65,59 @@
   color-scheme: dark;
 }
 
+/* =========================================================================
+   Theme palettes — swap the accent family only. Layout, fonts, spacing and
+   the dark background are unaffected: these blocks touch nothing but the
+   accent tokens. `data-theme` is set on <html> (default "mint").
+   ========================================================================= */
+[data-theme="mint"] {
+  --accent: #6ee7b7;
+  --accent-hover: #5dd6a6;
+  --accent-deep: #1f4d3d;
+  --accent-glow: rgba(110, 231, 183, 0.4);
+  --accent-ink: #042a1c;
+  --accent-soft: #a7f3d0;
+  --aurora-color: rgba(110, 231, 183, 0.08);
+  --accent-rgb: 110 231 183;
+  --accent-soft-rgb: 167 243 208;
+}
+
+[data-theme="blue"] {
+  --accent: #67e8f9;
+  --accent-hover: #22d3ee;
+  --accent-deep: #164e63;
+  --accent-glow: rgba(103, 232, 249, 0.4);
+  --accent-ink: #0c2a33;
+  --accent-soft: #a5f3fc;
+  --aurora-color: rgba(103, 232, 249, 0.08);
+  --accent-rgb: 103 232 249;
+  --accent-soft-rgb: 165 243 252;
+}
+
+[data-theme="red"] {
+  --accent: #f87171;
+  --accent-hover: #ef4444;
+  --accent-deep: #7f1d1d;
+  --accent-glow: rgba(248, 113, 113, 0.4);
+  --accent-ink: #3b0a0a;
+  --accent-soft: #fca5a5;
+  --aurora-color: rgba(248, 113, 113, 0.08);
+  --accent-rgb: 248 113 113;
+  --accent-soft-rgb: 252 165 165;
+}
+
+[data-theme="gold"] {
+  --accent: #fcd34d;
+  --accent-hover: #f59e0b;
+  --accent-deep: #78350f;
+  --accent-glow: rgba(252, 211, 77, 0.4);
+  --accent-ink: #3b1c00;
+  --accent-soft: #fde68a;
+  --aurora-color: rgba(252, 211, 77, 0.08);
+  --accent-rgb: 252 211 77;
+  --accent-soft-rgb: 253 230 138;
+}
+
 @theme inline {
   --color-bg: var(--color-bg);
   --color-bg-elevated: var(--color-bg-elevated);
@@ -56,6 +129,14 @@
   --color-mint-glow: var(--color-mint-glow);
   --color-mint-ink: var(--color-mint-ink);
   --color-mint-soft: var(--color-mint-soft);
+
+  /* accent utilities: text-accent / bg-accent / border-accent, etc. */
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-deep: var(--accent-deep);
+  --color-accent-glow: var(--accent-glow);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
 
   --color-amber: var(--color-amber);
   --color-amber-warm: var(--color-amber-warm);
@@ -108,6 +189,19 @@ html {
   background: var(--color-bg);
 }
 
+/* Theme crossfade: swapping `data-theme` changes the accent tokens instantly,
+   but animating those custom properties directly isn't reliable across
+   browsers. Transitioning the concrete accent-driven properties instead gives
+   the same 400ms crossfade when the palette changes. Motion-off users opt out
+   via the reduced-motion block at the end of the file. */
+* {
+  transition: color 400ms var(--ease-premium),
+    background-color 400ms var(--ease-premium),
+    border-color 400ms var(--ease-premium),
+    box-shadow 400ms var(--ease-premium), fill 400ms var(--ease-premium),
+    stroke 400ms var(--ease-premium);
+}
+
 body {
   background: transparent;
   color: var(--color-fg);
@@ -121,11 +215,11 @@ body {
 }
 
 ::selection {
-  background: rgba(110, 231, 183, 0.25);
+  background: rgb(var(--accent-rgb) / 0.25);
 }
 
 ::-moz-selection {
-  background: rgba(110, 231, 183, 0.25);
+  background: rgb(var(--accent-rgb) / 0.25);
 }
 
 input,
@@ -137,7 +231,7 @@ select,
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(110, 231, 183, 0.3) transparent;
+  scrollbar-color: rgb(var(--accent-rgb) / 0.3) transparent;
 }
 
 ::-webkit-scrollbar {
@@ -150,14 +244,14 @@ select,
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(110, 231, 183, 0.22);
+  background: rgb(var(--accent-rgb) / 0.22);
   border-radius: 999px;
   border: 2px solid transparent;
   background-clip: content-box;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(110, 231, 183, 0.4);
+  background: rgb(var(--accent-rgb) / 0.4);
   background-clip: content-box;
 }
 
@@ -177,9 +271,9 @@ select,
   pointer-events: none;
   background: radial-gradient(
       60% 50% at 50% 40%,
-      rgba(110, 231, 183, 0.18) 0%,
-      rgba(110, 231, 183, 0.06) 32%,
-      rgba(110, 231, 183, 0) 66%
+      rgb(var(--accent-rgb) / 0.18) 0%,
+      rgb(var(--accent-rgb) / 0.06) 32%,
+      rgb(var(--accent-rgb) / 0) 66%
     ),
     radial-gradient(
       34% 26% at 50% 44%,
@@ -219,7 +313,7 @@ select,
   background: linear-gradient(
     to top,
     rgba(0, 0, 0, 0) 0%,
-    rgba(110, 231, 183, 0.06) 40%,
+    rgb(var(--accent-rgb) / 0.06) 40%,
     rgba(0, 0, 0, 0) 100%
   );
   filter: blur(8px);
@@ -237,7 +331,7 @@ select,
   height: 1.5px;
   background: rgba(233, 239, 233, 0.55);
   border-radius: 50%;
-  box-shadow: 0 0 4px rgba(167, 243, 208, 0.35);
+  box-shadow: 0 0 4px rgb(var(--accent-soft-rgb) / 0.35);
   animation: vtDrift linear infinite;
 }
 
@@ -413,7 +507,7 @@ select,
 
 :where(input, select, textarea):not([data-no-vitality]):focus {
   border-color: var(--color-mint);
-  background: rgba(110, 231, 183, 0.04);
+  background: rgb(var(--accent-rgb) / 0.04);
   box-shadow: 0 0 0 3px var(--color-mint-glow);
 }
 
@@ -529,7 +623,7 @@ select,
   0%,
   100% {
     border-color: var(--color-border);
-    box-shadow: 0 0 0 0 rgba(110, 231, 183, 0);
+    box-shadow: 0 0 0 0 rgb(var(--accent-rgb) / 0);
   }
   50% {
     border-color: var(--color-mint);
@@ -670,7 +764,7 @@ select,
 
 @keyframes splitGlow {
   0% {
-    box-shadow: 0 0 0 0 rgba(110, 231, 183, 0);
+    box-shadow: 0 0 0 0 rgb(var(--accent-rgb) / 0);
   }
   60% {
     box-shadow: 0 0 0 5px var(--color-mint-glow);
@@ -746,7 +840,7 @@ select,
 
 .home-card:hover,
 .home-card:focus-visible {
-  box-shadow: var(--shadow-glass), 0 0 0 1px rgba(110, 231, 183, 0.2);
+  box-shadow: var(--shadow-glass), 0 0 0 1px rgb(var(--accent-rgb) / 0.2);
 }
 
 .home-card:active {
@@ -757,9 +851,9 @@ select,
 .home-skeleton {
   background: linear-gradient(
     100deg,
-    rgba(110, 231, 183, 0.04) 20%,
-    rgba(110, 231, 183, 0.14) 50%,
-    rgba(110, 231, 183, 0.04) 80%
+    rgb(var(--accent-rgb) / 0.04) 20%,
+    rgb(var(--accent-rgb) / 0.14) 50%,
+    rgb(var(--accent-rgb) / 0.04) 80%
   );
   background-size: 200% 100%;
   animation: homeShimmer 1.4s ease-in-out infinite;
@@ -1033,7 +1127,7 @@ select,
   display: block;
   height: 100%;
   border-radius: 20px;
-  border: 1px solid rgba(167, 243, 208, 0.1);
+  border: 1px solid rgb(var(--accent-soft-rgb) / 0.1);
   background: linear-gradient(
     165deg,
     rgba(16, 26, 22, 0.55),
@@ -1051,7 +1145,7 @@ select,
 
 .vee-tile:hover,
 .vee-tile:focus-visible {
-  border-color: rgba(110, 231, 183, 0.3);
+  border-color: rgb(var(--accent-rgb) / 0.3);
   background: linear-gradient(
     165deg,
     rgba(22, 34, 29, 0.62),
@@ -1074,7 +1168,7 @@ select,
   pointer-events: none;
   background: radial-gradient(
     ellipse 85% 75% at 58% 38%,
-    rgba(110, 231, 183, 0.07),
+    rgb(var(--accent-rgb) / 0.07),
     transparent 64%
   );
 }
@@ -1207,8 +1301,8 @@ select,
   pointer-events: none;
   background: radial-gradient(
     circle,
-    rgba(110, 231, 183, 0.12) 0,
-    rgba(110, 231, 183, 0.05) 42%,
+    rgb(var(--accent-rgb) / 0.12) 0,
+    rgb(var(--accent-rgb) / 0.05) 42%,
     transparent 66%
   );
   animation: veeDisc 9s var(--ease-premium) infinite;
@@ -1541,7 +1635,7 @@ select,
     background: transparent;
   }
   50% {
-    background: rgba(110, 231, 183, 0.25);
+    background: rgb(var(--accent-rgb) / 0.25);
   }
   100% {
     background: transparent;
@@ -1569,13 +1663,13 @@ select,
 }
 @keyframes vtHeaderGlow {
   0% {
-    box-shadow: 0 0 0 0 rgba(110, 231, 183, 0);
+    box-shadow: 0 0 0 0 rgb(var(--accent-rgb) / 0);
   }
   50% {
-    box-shadow: 0 0 12px 0 rgba(110, 231, 183, 0.6);
+    box-shadow: 0 0 12px 0 rgb(var(--accent-rgb) / 0.6);
   }
   100% {
-    box-shadow: 0 0 0 0 rgba(110, 231, 183, 0);
+    box-shadow: 0 0 0 0 rgb(var(--accent-rgb) / 0);
   }
 }
 
@@ -1770,5 +1864,9 @@ select,
   .vt-press:active,
   .vt-press-card:active {
     transform: none;
+  }
+  /* collapse the global theme crossfade so a palette swap is instant */
+  * {
+    transition-duration: 0.01ms !important;
   }
 }

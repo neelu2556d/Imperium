@@ -33,8 +33,8 @@ export default function RingArt({ progress, warn }: RingArtProps) {
     <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid slice">
       <defs>
         <radialGradient id={`rg-${id}`} cx="50%" cy="45%" r="60%">
-          <stop offset="0%" stopColor="rgba(110,231,183,0.10)" />
-          <stop offset="100%" stopColor="rgba(110,231,183,0)" />
+          <stop offset="0%" stopColor="rgb(var(--accent-rgb) / 0.10)" />
+          <stop offset="100%" stopColor="rgb(var(--accent-rgb) / 0)" />
         </radialGradient>
       </defs>
 

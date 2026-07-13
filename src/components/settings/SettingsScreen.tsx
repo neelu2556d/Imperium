@@ -12,9 +12,14 @@ import { clearOnboardingCompleteCookie } from "@/lib/onboarding/cookie";
 import {
   fetchProfileBasics,
   fetchMentorSetup,
+  fetchThemePreference,
   saveMentorSetup,
   saveProfileBasics,
+  saveThemePreference,
+  DEFAULT_THEME,
+  type ThemePreference,
 } from "@/lib/supabase/profile";
+import { applyTheme, getLocalTheme, THEME_OPTIONS } from "@/lib/theme";
 import {
   DEFAULT_NUTRITION_GOALS,
   fetchNutritionGoals,
@@ -160,6 +165,126 @@ function FieldLabel({ htmlFor, children }: { htmlFor?: string; children: ReactNo
     <label htmlFor={htmlFor} className="mb-2 block text-sm text-muted-strong">
       {children}
     </label>
+  );
+}
+
+/* ------------------------------- 0. Theme ------------------------------- */
+
+/**
+ * Preview colours for each theme's swatch. These are literal because a swatch
+ * must show its own accent even when it isn't the active theme — `var(--accent)`
+ * would resolve to whichever theme is currently applied. The live app still
+ * recolours purely through the CSS accent tokens; this map is preview-only and
+ * mirrors the palettes defined in `globals.css`.
+ */
+const THEME_SWATCHES: Record<ThemePreference, { accent: string; glow: string }> = {
+  mint: { accent: "#6ee7b7", glow: "rgba(110, 231, 183, 0.4)" },
+  blue: { accent: "#67e8f9", glow: "rgba(103, 232, 249, 0.4)" },
+  red: { accent: "#f87171", glow: "rgba(248, 113, 113, 0.4)" },
+  gold: { accent: "#fcd34d", glow: "rgba(252, 211, 77, 0.4)" },
+};
+
+function CheckBadge({ color }: { color: string }) {
+  return (
+    <span
+      aria-hidden
+      className="vt-check-pop absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full"
+      style={{ background: color, boxShadow: "0 0 0 2px var(--color-bg)" }}
+    >
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
+        <path
+          d="M5 12.5l4.5 4.5L19 7"
+          stroke="var(--color-bg)"
+          strokeWidth="3.2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    </span>
+  );
+}
+
+function ThemeSection() {
+  // Start from the default so server and first client render agree; the effect
+  // below reconciles with the locally-applied theme and the saved preference.
+  const [theme, setTheme] = useState<ThemePreference>(DEFAULT_THEME);
+
+  useEffect(() => {
+    let cancelled = false;
+    // Reflect the locally-applied theme immediately (post-mount, so no
+    // hydration mismatch), then reconcile with the durable Supabase copy for
+    // first-load-on-a-new-device.
+    Promise.resolve().then(() => {
+      if (!cancelled) setTheme(getLocalTheme());
+    });
+    fetchThemePreference()
+      .then((saved) => {
+        if (cancelled) return;
+        setTheme(saved);
+        applyTheme(saved);
+      })
+      .catch(() => {
+        /* keep whatever is locally applied */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const pick = (next: ThemePreference) => {
+    if (next === theme) return;
+    setTheme(next);
+    applyTheme(next); // instant, global recolour
+    void saveThemePreference(next).catch(() => {
+      /* the local + on-screen theme still holds if the save fails */
+    });
+  };
+
+  return (
+    <Section title="Theme">
+      <p className="-mt-1 mb-4 text-sm text-muted">
+        Change your accent color. Everything else stays the same.
+      </p>
+
+      <div className="grid grid-cols-2 gap-3">
+        {THEME_OPTIONS.map((option) => {
+          const active = option.value === theme;
+          const swatch = THEME_SWATCHES[option.value];
+          return (
+            <button
+              key={option.value}
+              type="button"
+              data-no-vitality
+              aria-pressed={active}
+              onClick={() => pick(option.value)}
+              className="vt-press-card flex flex-col items-center gap-2.5 rounded-xl border p-4 transition-colors"
+              style={{
+                borderColor: active ? swatch.accent : "var(--color-border)",
+                background: "var(--color-card)",
+              }}
+            >
+              <span
+                className="relative flex h-10 w-10 items-center justify-center rounded-full"
+                style={{
+                  background: swatch.accent,
+                  boxShadow: `0 0 16px ${swatch.glow}`,
+                }}
+              >
+                {active && <CheckBadge key={option.value} color={swatch.accent} />}
+              </span>
+              <span
+                className="text-sm font-medium"
+                style={{ color: active ? "var(--color-fg)" : "var(--color-muted-strong)" }}
+              >
+                {option.label}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      <p className="mt-4 text-xs text-muted">More themes coming soon.</p>
+    </Section>
   );
 }
 
@@ -716,8 +841,8 @@ export default function SettingsScreen() {
     <div className="mx-auto w-full max-w-lg px-5 pb-28 pt-8">
       <header className="mb-7 flex items-center gap-3">
         <Link
-          href="/train"
-          aria-label="Back to training"
+          href="/home"
+          aria-label="Back to home"
           data-no-vitality
           className="inline-flex h-9 w-9 items-center justify-center rounded-full text-fg/70 transition-colors hover:text-fg"
         >
@@ -740,6 +865,7 @@ export default function SettingsScreen() {
         </h1>
       </header>
 
+      <ThemeSection />
       <ProfileSection />
       <NutritionSection />
       <VitalsSection />

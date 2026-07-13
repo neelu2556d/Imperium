@@ -172,7 +172,7 @@ export default function SetRow({
       className="rounded-2xl px-4 py-4"
       style={{
         border: "1px solid var(--color-mint)",
-        background: "rgba(110,231,183,0.06)",
+        background: "rgb(var(--accent-rgb) / 0.06)",
       }}
     >
       <div className="flex items-center gap-3">

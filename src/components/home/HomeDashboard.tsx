@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type CSSProperties } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import ImperiumGem from "@/components/welcome/ImperiumGem";
 import VitalityTile from "@/components/home/VitalityTile";
@@ -9,6 +10,7 @@ import WireArt from "@/components/home/tileart/WireArt";
 import RingArt from "@/components/home/tileart/RingArt";
 import BarsArt from "@/components/home/tileart/BarsArt";
 import MotesArt from "@/components/home/tileart/MotesArt";
+import { GearIcon } from "@/components/train/icons";
 import {
   ActivityIcon,
   DumbbellIcon,
@@ -129,6 +131,15 @@ export default function HomeDashboard() {
             {dateStr} · {timeStr}
           </p>
         </div>
+
+        <Link
+          href="/settings"
+          data-no-vitality
+          aria-label="Settings"
+          className="ml-auto flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border text-muted transition-colors hover:border-mint hover:text-fg"
+        >
+          <GearIcon size={17} />
+        </Link>
       </header>
 
       {/* ---------- Vitality bento grid ---------- */}

@@ -192,3 +192,53 @@ export async function saveMentorSetup(
 
   if (error) throw error;
 }
+
+/** The four accent themes the settings switcher offers. */
+export type ThemePreference = "mint" | "blue" | "red" | "gold";
+
+export const DEFAULT_THEME: ThemePreference = "mint";
+
+const THEMES: ThemePreference[] = ["mint", "blue", "red", "gold"];
+
+/** Narrows an arbitrary value to a known theme, falling back to the default. */
+export function normalizeTheme(value: unknown): ThemePreference {
+  return THEMES.includes(value as ThemePreference)
+    ? (value as ThemePreference)
+    : DEFAULT_THEME;
+}
+
+/**
+ * Loads the user's saved accent theme. Returns the default for brand-new users
+ * with no profile row yet, so the app always has a concrete theme to apply.
+ */
+export async function fetchThemePreference(): Promise<ThemePreference> {
+  const userId = await ensureAnonymousSession();
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("theme_preference")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) throw error;
+
+  return normalizeTheme(data?.theme_preference);
+}
+
+/** Upserts the user's accent theme choice onto their profile row. */
+export async function saveThemePreference(
+  theme: ThemePreference
+): Promise<void> {
+  const userId = await ensureAnonymousSession();
+
+  const { error } = await supabase.from("profiles").upsert(
+    {
+      user_id: userId,
+      theme_preference: theme,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "user_id" }
+  );
+
+  if (error) throw error;
+}

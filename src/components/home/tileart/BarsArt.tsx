@@ -34,7 +34,7 @@ export default function BarsArt({ values }: BarsArtProps) {
       <defs>
         <linearGradient id={`bg-${id}`} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor="var(--color-mint)" />
-          <stop offset="100%" stopColor="rgba(110,231,183,0.35)" />
+          <stop offset="100%" stopColor="rgb(var(--accent-rgb) / 0.35)" />
         </linearGradient>
       </defs>
 
@@ -68,7 +68,7 @@ export default function BarsArt({ values }: BarsArtProps) {
                 "--d": `${0.06 * i}s`,
                 opacity: isLast ? 1 : 0.9,
                 filter: isLast
-                  ? "drop-shadow(0 0 5px rgba(110,231,183,0.85)) drop-shadow(0 0 12px rgba(110,231,183,0.4))"
+                  ? "drop-shadow(0 0 5px rgb(var(--accent-rgb) / 0.85)) drop-shadow(0 0 12px rgb(var(--accent-rgb) / 0.4))"
                   : "none",
               } as React.CSSProperties
             }

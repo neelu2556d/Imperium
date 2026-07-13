@@ -47,7 +47,7 @@ export default function SplitCard({
         style={{
           borderColor: selected ? "var(--color-mint)" : "var(--color-border)",
           background: selected
-            ? "rgba(110, 231, 183, 0.06)"
+            ? "rgb(var(--accent-rgb) / 0.06)"
             : "var(--color-card-elevated)",
         }}
       >

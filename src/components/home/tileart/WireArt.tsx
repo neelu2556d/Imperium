@@ -28,8 +28,8 @@ export default function WireArt({ values }: WireArtProps) {
     <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid slice">
       <defs>
         <linearGradient id={`wf-${id}`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="rgba(110,231,183,0.28)" />
-          <stop offset="100%" stopColor="rgba(110,231,183,0)" />
+          <stop offset="0%" stopColor="rgb(var(--accent-rgb) / 0.28)" />
+          <stop offset="100%" stopColor="rgb(var(--accent-rgb) / 0)" />
         </linearGradient>
       </defs>
 
@@ -49,7 +49,7 @@ export default function WireArt({ values }: WireArtProps) {
           {
             "--len": len,
             filter:
-              "drop-shadow(0 0 4px rgba(110,231,183,0.5)) drop-shadow(0 0 10px rgba(110,231,183,0.25))",
+              "drop-shadow(0 0 4px rgb(var(--accent-rgb) / 0.5)) drop-shadow(0 0 10px rgb(var(--accent-rgb) / 0.25))",
           } as React.CSSProperties
         }
       />
@@ -65,7 +65,7 @@ export default function WireArt({ values }: WireArtProps) {
           {
             "--d": "1.3s",
             filter:
-              "drop-shadow(0 0 4px rgba(110,231,183,0.95)) drop-shadow(0 0 9px rgba(110,231,183,0.5))",
+              "drop-shadow(0 0 4px rgb(var(--accent-rgb) / 0.95)) drop-shadow(0 0 9px rgb(var(--accent-rgb) / 0.5))",
           } as React.CSSProperties
         }
       />

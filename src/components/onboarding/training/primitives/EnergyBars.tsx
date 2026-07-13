@@ -40,7 +40,7 @@ export default function EnergyBars({
                 ? "var(--color-mint)"
                 : "var(--color-border)",
               background: isSelected
-                ? "rgba(110, 231, 183, 0.12)"
+                ? "rgb(var(--accent-rgb) / 0.12)"
                 : "var(--color-card-elevated)",
               color: isSelected ? "var(--color-mint)" : "var(--color-muted-strong)",
             }}

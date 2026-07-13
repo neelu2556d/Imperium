@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import DayCard from "@/components/train/DayCard";
-import { GearIcon, PlusIcon, RefreshIcon } from "@/components/train/icons";
+import { PlusIcon, RefreshIcon } from "@/components/train/icons";
 import { formatToday } from "@/lib/home/datetime";
 import { todayIndexInSplit } from "@/lib/train/schedule";
 import {
@@ -119,14 +119,6 @@ export default function TrainDashboard() {
             <span className="hidden sm:inline">Adjust your training</span>
             <span className="sm:hidden">Adjust</span>
             <span aria-hidden>→</span>
-          </Link>
-          <Link
-            href="/settings"
-            data-no-vitality
-            aria-label="Settings"
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-border text-muted transition-colors hover:border-mint hover:text-fg"
-          >
-            <GearIcon size={17} />
           </Link>
         </div>
       </header>

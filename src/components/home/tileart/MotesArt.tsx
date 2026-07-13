@@ -37,7 +37,7 @@ export default function MotesArt() {
                 "--orb": m.orb,
                 "--d": m.d,
                 filter:
-                  "drop-shadow(0 0 4px rgba(110,231,183,0.9)) drop-shadow(0 0 8px rgba(110,231,183,0.5))",
+                  "drop-shadow(0 0 4px rgb(var(--accent-rgb) / 0.9)) drop-shadow(0 0 8px rgb(var(--accent-rgb) / 0.5))",
               } as React.CSSProperties
             }
           />

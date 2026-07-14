@@ -4,12 +4,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ComponentType } from "react";
 import {
+  BriefcaseIcon,
   DumbbellIcon,
   FlameIcon,
   GemIcon,
   HouseIcon,
   WaterDropIcon,
 } from "@/components/home/icons";
+import { useOwner } from "@/lib/useOwner";
 
 interface Tab {
   href: string;
@@ -25,8 +27,18 @@ const TABS: Tab[] = [
   { href: "/mentor", label: "Imperium", Icon: GemIcon },
 ];
 
+// The Business tab is owner-only; appended to the base tabs when `useOwner()`
+// resolves true (see lib/owner.ts). The server-side proxy guard is the hard
+// gate — this just controls whether the entry point renders.
+const BUSINESS_TAB: Tab = {
+  href: "/business",
+  label: "Business",
+  Icon: BriefcaseIcon,
+};
+
 export default function BottomNav() {
   const pathname = usePathname();
+  const isOwner = useOwner();
 
   // Pre-app flows (auth, welcome, onboarding) are entered before the tabs are
   // meaningful — their nav targets are gated, and showing a tab bar with no
@@ -39,7 +51,8 @@ export default function BottomNav() {
     return null;
   }
 
-  const activeIndex = TABS.findIndex(({ href }) => pathname.startsWith(href));
+  const tabs = isOwner ? [...TABS, BUSINESS_TAB] : TABS;
+  const activeIndex = tabs.findIndex(({ href }) => pathname.startsWith(href));
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-bg/70 backdrop-blur-lg">
@@ -50,14 +63,14 @@ export default function BottomNav() {
             aria-hidden
             className="vt-nav-indicator pointer-events-none absolute top-0 h-0.5"
             style={{
-              width: `${100 / TABS.length}%`,
+              width: `${100 / tabs.length}%`,
               transform: `translateX(${activeIndex * 100}%)`,
               background: "var(--color-mint)",
               boxShadow: "0 0 8px var(--color-mint-glow)",
             }}
           />
         )}
-        {TABS.map(({ href, label, Icon }) => {
+        {tabs.map(({ href, label, Icon }) => {
           const isActive = pathname.startsWith(href);
           return (
             <li key={href} className="flex-1">

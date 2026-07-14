@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createProxyClient } from "@/lib/supabase/proxy";
+import { isOwnerEmail } from "@/lib/owner";
 
 const ONBOARDING_COMPLETE_COOKIE = "onboarding_complete";
 
@@ -13,6 +14,8 @@ const ONBOARDING_COMPLETE_COOKIE = "onboarding_complete";
  *   2. Onboarding shortcut — an authenticated user who hasn't finished
  *      onboarding is funnelled to `/welcome` (cookie fast-path; the client
  *      OnboardingProvider/Guard remain the source of truth).
+ *   3. Owner wall — `/business/*` is strictly owner-only. Any signed-in user
+ *      who isn't the owner (see `lib/owner.ts`) is bounced to `/home`.
  *
  * "Authenticated" means a *real* account — anonymous Supabase sessions (used to
  * persist onboarding progress) count as logged-out, so they still hit the wall.
@@ -51,6 +54,13 @@ export async function proxy(request: NextRequest) {
     if (!onboarded) {
       return redirectTo(request, "/welcome", response);
     }
+  }
+
+  // 3. `/business/*` is owner-only. Non-owners (any authed non-owner account)
+  //    are sent home. Logged-out/anon users never reach here — they're already
+  //    bounced by the auth wall above.
+  if (pathname.startsWith("/business") && !isOwnerEmail(user?.email)) {
+    return redirectTo(request, "/home", response);
   }
 
   return response;

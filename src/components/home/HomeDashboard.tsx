@@ -13,9 +13,11 @@ import MotesArt from "@/components/home/tileart/MotesArt";
 import { GearIcon } from "@/components/train/icons";
 import {
   ActivityIcon,
+  BriefcaseIcon,
   DumbbellIcon,
   FlameIcon,
 } from "@/components/home/icons";
+import { useOwner } from "@/lib/useOwner";
 import { formatTime, formatToday, getGreeting } from "@/lib/home/datetime";
 import {
   fetchFuelSparkline,
@@ -46,6 +48,7 @@ type LoadState =
 
 export default function HomeDashboard() {
   const [state, setState] = useState<LoadState>({ status: "loading" });
+  const isOwner = useOwner();
 
   // Live wall clock. Seeded on first render (SSR uses the server's timezone; the
   // client corrects on hydration — hence suppressHydrationWarning below) and
@@ -143,7 +146,7 @@ export default function HomeDashboard() {
       </header>
 
       {/* ---------- Vitality bento grid ---------- */}
-      <div className="vee-grid">
+      <div className={`vee-grid${isOwner ? " has-business" : ""}`}>
         {/* 01 — TRAIN */}
         <VitalityTile
           className="vt-bento-card"
@@ -219,6 +222,23 @@ export default function HomeDashboard() {
 
         {/* 04 — IMPERIUM (brand centrepiece) */}
         <BrandTile className="vt-bento-card" style={cardStagger(3)} />
+
+        {/* 05 — BUSINESS (owner-only; the wholesale command centre) */}
+        {isOwner && (
+          <VitalityTile
+            className="vt-bento-card"
+            style={cardStagger(4)}
+            area="area-business"
+            variant="tile-fuel"
+            index="05"
+            glyph={<BriefcaseIcon size={18} />}
+            label="Business"
+            art={<BarsArt values={[]} />}
+            href="/business"
+            ariaLabel="Open Business"
+            summary="Your wholesale command centre — sales, stock, and collections."
+          />
+        )}
       </div>
     </div>
   );

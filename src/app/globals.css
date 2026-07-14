@@ -1107,6 +1107,20 @@ select,
 .vee-grid > .area-brand {
   grid-area: brand;
 }
+.vee-grid > .area-business {
+  grid-area: business;
+}
+
+/* Owner-only layout: a full-width Business strip slots in above the brand tile
+   (mobile) / along the bottom (desktop). Applied via .has-business so the base
+   four-tile grid is untouched for everyone else. */
+.vee-grid.has-business {
+  grid-template-areas:
+    "train    train"
+    "vitals   fuel"
+    "business business"
+    "brand    brand";
+}
 
 @media (min-width: 768px) {
   .vee-grid {
@@ -1116,6 +1130,12 @@ select,
     grid-template-areas:
       "train  train  fuel   brand"
       "vitals vitals fuel   brand";
+  }
+  .vee-grid.has-business {
+    grid-template-areas:
+      "train    train    fuel     brand"
+      "vitals   vitals   fuel     brand"
+      "business business business business";
   }
 }
 

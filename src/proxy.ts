@@ -10,7 +10,7 @@ const ONBOARDING_COMPLETE_COOKIE = "onboarding_complete";
  * Two layers, in order:
  *   1. Auth wall — everything is protected except `/auth/*` and `/welcome`.
  *      Unauthenticated visitors are sent to `/auth/signin`; authenticated
- *      users who hit an `/auth/*` page are sent to `/train`.
+ *      users who hit an `/auth/*` page are sent to `/home`.
  *   2. Onboarding shortcut — an authenticated user who hasn't finished
  *      onboarding is funnelled to `/welcome` (cookie fast-path; the client
  *      OnboardingProvider/Guard remain the source of truth).
@@ -38,7 +38,7 @@ export async function proxy(request: NextRequest) {
 
   // 1a. Signed-in users have no business on the auth screens.
   if (isAuthed && isAuthRoute) {
-    return redirectTo(request, "/train", response);
+    return redirectTo(request, "/home", response);
   }
 
   // 1b. `/auth/*` and `/welcome` are the only routes open to logged-out users.

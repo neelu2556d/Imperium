@@ -59,7 +59,7 @@ export default function WireArt({ values }: WireArtProps) {
         cx={last.x}
         cy={last.y}
         r={5}
-        fill="#eafff4"
+        fill="var(--accent-soft)"
         className="vee-node"
         style={
           {

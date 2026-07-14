@@ -5,6 +5,7 @@
   --color-bg-elevated: #0a0a0a;
   --color-fg: #ffffff;
 
+<<<<<<< HEAD
   /* ---- accent palette ----
      The single source of truth for the app's accent colour. `data-theme` on
      <html> swaps these seven tokens (+ the two rgb triplets) and everything
@@ -13,18 +14,58 @@
      here too. The default set is Mint Green; the [data-theme] blocks lower down
      override them. `--accent-rgb` / `--accent-soft-rgb` let alpha-varied rgba()
      literals recolour while keeping their exact opacities. */
+=======
+  /* ---------------------------------------------------------------------
+     Accent palette. The whole app's accent is driven by this one family of
+     tokens. The default (mint) values below are also duplicated in
+     [data-theme="mint"] so a themed <html> and an unthemed one look identical.
+     A theme swap is nothing more than swapping these six values (plus the two
+     RGB triplets used for variable-alpha glows) — no layout, font, spacing or
+     background changes.
+
+       --accent        the accent hue
+       --accent-hover  a touch deeper, for hover/pressed fills
+       --accent-deep   the dark facet / shadow tone
+       --accent-ink    near-black ink that sits legibly on an accent fill
+       --accent-soft   a lighter tint of the accent
+       --accent-glow   rgba at 0.4 — the canonical focus/glow ring
+       --accent-rgb / --accent-soft-rgb
+                       space-separated channels so call sites can compose any
+                       alpha via rgb(var(--accent-rgb) / <a>) and stay on-theme.
+       --aurora-color  the soft backdrop wash (rgba at 0.08)
+  --------------------------------------------------------------------- */
+>>>>>>> 5069a15 (Add email-only auth, theme-aware backdrop, and photo library upload)
   --accent: #6ee7b7;
   --accent-hover: #5dd6a6;
   --accent-deep: #1f4d3d;
   --accent-glow: rgba(110, 231, 183, 0.4);
   --accent-ink: #042a1c;
   --accent-soft: #a7f3d0;
+<<<<<<< HEAD
   --aurora-color: rgba(110, 231, 183, 0.08);
   --accent-rgb: 110 231 183;
   --accent-soft-rgb: 167 243 208;
 
   /* the mint tokens the codebase already consumes, remapped onto the accent
      palette so no call site needs to change */
+=======
+  --accent-rgb: 110 231 183;
+  --accent-soft-rgb: 167 243 208;
+  --aurora-color: rgba(110, 231, 183, 0.08);
+
+  /* Backdrop landscape tints — the "waves"/mountains at the bottom of every
+     screen. Derived from the accent so they re-colour with the theme instead
+     of staying mint-green. The far ridge is a ~11% accent-into-black tint,
+     the near ridge ~4% (matching the original #0d1a17 / #050a09 mint values). */
+  --wb-mtn-far: color-mix(in srgb, var(--accent) 11%, #000);
+  --wb-mtn-near: color-mix(in srgb, var(--accent) 4%, #000);
+  --wb-horizon: color-mix(in srgb, var(--accent) 15%, #000);
+
+  /* The established --color-mint* names are kept as theme-driven aliases of the
+     accent tokens above, so every existing reference (Tailwind `mint`
+     utilities, inline var(--color-mint*), the gem, nav, charts) re-colours
+     automatically when the accent swaps — no call-site edits required. */
+>>>>>>> 5069a15 (Add email-only auth, theme-aware backdrop, and photo library upload)
   --color-mint: var(--accent);
   --color-mint-hover: var(--accent-hover);
   --color-mint-deep: var(--accent-deep);
@@ -66,10 +107,21 @@
 }
 
 /* =========================================================================
+<<<<<<< HEAD
    Theme palettes — swap the accent family only. Layout, fonts, spacing and
    the dark background are unaffected: these blocks touch nothing but the
    accent tokens. `data-theme` is set on <html> (default "mint").
    ========================================================================= */
+=======
+   Accent themes — a data-attribute on <html> swaps only the accent palette.
+   The design-system structure (layout, fonts, spacing, dark background) is
+   untouched; every accent token below feeds the shared --accent* family, which
+   the whole app already reads. Switching data-theme re-colours instantly with
+   no reload because nothing hardcodes the hue anymore.
+   ========================================================================= */
+
+/* Default — Mint Green (mirrors the base :root values above) */
+>>>>>>> 5069a15 (Add email-only auth, theme-aware backdrop, and photo library upload)
 [data-theme="mint"] {
   --accent: #6ee7b7;
   --accent-hover: #5dd6a6;
@@ -77,11 +129,20 @@
   --accent-glow: rgba(110, 231, 183, 0.4);
   --accent-ink: #042a1c;
   --accent-soft: #a7f3d0;
+<<<<<<< HEAD
   --aurora-color: rgba(110, 231, 183, 0.08);
   --accent-rgb: 110 231 183;
   --accent-soft-rgb: 167 243 208;
 }
 
+=======
+  --accent-rgb: 110 231 183;
+  --accent-soft-rgb: 167 243 208;
+  --aurora-color: rgba(110, 231, 183, 0.08);
+}
+
+/* Ice Blue */
+>>>>>>> 5069a15 (Add email-only auth, theme-aware backdrop, and photo library upload)
 [data-theme="blue"] {
   --accent: #67e8f9;
   --accent-hover: #22d3ee;
@@ -89,11 +150,20 @@
   --accent-glow: rgba(103, 232, 249, 0.4);
   --accent-ink: #0c2a33;
   --accent-soft: #a5f3fc;
+<<<<<<< HEAD
   --aurora-color: rgba(103, 232, 249, 0.08);
   --accent-rgb: 103 232 249;
   --accent-soft-rgb: 165 243 252;
 }
 
+=======
+  --accent-rgb: 103 232 249;
+  --accent-soft-rgb: 165 243 252;
+  --aurora-color: rgba(103, 232, 249, 0.08);
+}
+
+/* Crimson */
+>>>>>>> 5069a15 (Add email-only auth, theme-aware backdrop, and photo library upload)
 [data-theme="red"] {
   --accent: #f87171;
   --accent-hover: #ef4444;
@@ -101,11 +171,20 @@
   --accent-glow: rgba(248, 113, 113, 0.4);
   --accent-ink: #3b0a0a;
   --accent-soft: #fca5a5;
+<<<<<<< HEAD
   --aurora-color: rgba(248, 113, 113, 0.08);
   --accent-rgb: 248 113 113;
   --accent-soft-rgb: 252 165 165;
 }
 
+=======
+  --accent-rgb: 248 113 113;
+  --accent-soft-rgb: 252 165 165;
+  --aurora-color: rgba(248, 113, 113, 0.08);
+}
+
+/* Gold */
+>>>>>>> 5069a15 (Add email-only auth, theme-aware backdrop, and photo library upload)
 [data-theme="gold"] {
   --accent: #fcd34d;
   --accent-hover: #f59e0b;
@@ -113,9 +192,33 @@
   --accent-glow: rgba(252, 211, 77, 0.4);
   --accent-ink: #3b1c00;
   --accent-soft: #fde68a;
+<<<<<<< HEAD
   --aurora-color: rgba(252, 211, 77, 0.08);
   --accent-rgb: 252 211 77;
   --accent-soft-rgb: 253 230 138;
+=======
+  --accent-rgb: 252 211 77;
+  --accent-soft-rgb: 253 230 138;
+  --aurora-color: rgba(252, 211, 77, 0.08);
+}
+
+/* Smooth accent crossfade on theme change. CSS custom properties can't be
+   transitioned directly, so we transition the *properties that consume* the
+   accent instead — enabled only briefly (while <html> carries .theme-anim,
+   toggled by the theme switcher) so ordinary hovers stay snappy. */
+html.theme-anim,
+html.theme-anim * {
+  transition: color 400ms ease, background-color 400ms ease,
+    border-color 400ms ease, box-shadow 400ms ease, fill 400ms ease,
+    stroke 400ms ease !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.theme-anim,
+  html.theme-anim * {
+    transition: none !important;
+  }
+>>>>>>> 5069a15 (Add email-only auth, theme-aware backdrop, and photo library upload)
 }
 
 @theme inline {
@@ -130,7 +233,13 @@
   --color-mint-ink: var(--color-mint-ink);
   --color-mint-soft: var(--color-mint-soft);
 
+<<<<<<< HEAD
   /* accent utilities: text-accent / bg-accent / border-accent, etc. */
+=======
+  /* accent utilities (text-accent, bg-accent, border-accent, …) — the
+     Tailwind-token equivalent of the --accent* family, so accent-named classes
+     work app-wide and re-theme with everything else. */
+>>>>>>> 5069a15 (Add email-only auth, theme-aware backdrop, and photo library upload)
   --color-accent: var(--accent);
   --color-accent-hover: var(--accent-hover);
   --color-accent-deep: var(--accent-deep);
@@ -282,7 +391,7 @@ select,
     ),
     radial-gradient(
       130% 90% at 50% 120%,
-      rgba(14, 38, 30, 0.85) 0%,
+      color-mix(in srgb, var(--wb-horizon) 85%, transparent) 0%,
       rgba(0, 0, 0, 1) 72%
     );
 }

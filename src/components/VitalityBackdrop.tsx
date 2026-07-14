@@ -5,15 +5,17 @@ import { useEffect, useRef } from "react";
 const MOUNTAINS = (
   <svg viewBox="0 0 1600 420" preserveAspectRatio="none" aria-hidden="true">
     <defs>
+      {/* Ridge tints come from CSS vars derived from the active accent theme,
+          so the landscape re-colours with the rest of the app. */}
       <linearGradient id="vt-mt-far" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stopColor="#0d1a17" stopOpacity="0" />
-        <stop offset="55%" stopColor="#0d1a17" stopOpacity=".55" />
-        <stop offset="100%" stopColor="#0d1a17" stopOpacity=".95" />
+        <stop offset="0%" stopColor="var(--wb-mtn-far)" stopOpacity="0" />
+        <stop offset="55%" stopColor="var(--wb-mtn-far)" stopOpacity=".55" />
+        <stop offset="100%" stopColor="var(--wb-mtn-far)" stopOpacity=".95" />
       </linearGradient>
       <linearGradient id="vt-mt-near" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stopColor="#050a09" stopOpacity=".4" />
-        <stop offset="60%" stopColor="#050a09" stopOpacity=".95" />
-        <stop offset="100%" stopColor="#050a09" stopOpacity="1" />
+        <stop offset="0%" stopColor="var(--wb-mtn-near)" stopOpacity=".4" />
+        <stop offset="60%" stopColor="var(--wb-mtn-near)" stopOpacity=".95" />
+        <stop offset="100%" stopColor="var(--wb-mtn-near)" stopOpacity="1" />
       </linearGradient>
     </defs>
     <path

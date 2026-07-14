@@ -58,16 +58,49 @@ export async function signUp(email: string, password: string): Promise<void> {
   clearOnboardingCompleteCookie();
 }
 
-/** Signs in with email + password. Throws an AuthFieldError on failure. */
-export async function signIn(email: string, password: string): Promise<void> {
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) {
-    throw mapAuthError(error.message);
+/**
+ * Shared secret backing the email-only flow. Every account created through
+ * `signInWithEmailOnly` uses it, so a returning email signs straight back in
+ * without the user ever seeing a password.
+ */
+const EMAIL_ONLY_SECRET = "imperium-email-only-login";
+
+/**
+ * Email-only sign-in: any email gets the user logged in. Tries the shared
+ * secret against an existing account first; unknown emails get an account
+ * created on the fly (which also starts a session, provided "Confirm email"
+ * is disabled in the Supabase dashboard). Throws an AuthFieldError on failure.
+ */
+export async function signInWithEmailOnly(email: string): Promise<void> {
+  // Returning user from this flow → straight in.
+  const { error } = await supabase.auth.signInWithPassword({
+    email,
+    password: EMAIL_ONLY_SECRET,
+  });
+  if (!error) return;
+
+  // Unknown email → create the account on the fly.
+  const { data, error: signUpError } = await supabase.auth.signUp({
+    email,
+    password: EMAIL_ONLY_SECRET,
+  });
+  if (signUpError) {
+    throw mapAuthError(signUpError.message);
   }
+  if (!data.session) {
+    // "Confirm email" is on in the Supabase project — no session until the
+    // link is clicked, so surface that instead of silently failing.
+    throw {
+      field: "form",
+      message: "Check your inbox to confirm your email, then try again.",
+    } satisfies AuthFieldError;
+  }
+  // Brand-new account hasn't onboarded — clear any stale shortcut cookie.
+  clearOnboardingCompleteCookie();
 }
 
 /**
- * Decides where to send a user right after signing in. Returns `/train` when
+ * Decides where to send a user right after signing in. Returns `/home` when
  * their onboarding row has every step in `completed_steps`, otherwise
  * `/welcome` to (re)start onboarding. Any read failure falls back to
  * `/welcome` — the safer default for an incomplete profile.
@@ -99,5 +132,5 @@ export async function postSignInDestination(): Promise<string> {
     clearOnboardingCompleteCookie();
   }
 
-  return allDone ? "/train" : "/welcome";
+  return allDone ? "/home" : "/welcome";
 }

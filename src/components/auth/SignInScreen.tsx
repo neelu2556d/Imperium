@@ -1,26 +1,23 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import AuthCard from "@/components/auth/AuthCard";
 import AuthField from "@/components/auth/AuthField";
 import {
-  signIn,
+  signInWithEmailOnly,
   postSignInDestination,
   type AuthFieldError,
 } from "@/lib/supabase/auth";
 
 interface FieldErrors {
   email?: string;
-  password?: string;
   form?: string;
 }
 
 export default function SignInScreen() {
   const router = useRouter();
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<FieldErrors>({});
   const [submitting, setSubmitting] = useState(false);
 
@@ -28,26 +25,31 @@ export default function SignInScreen() {
     event.preventDefault();
     if (submitting) return;
 
-    const next: FieldErrors = {};
-    if (!email.trim()) next.email = "Enter your email";
-    if (!password) next.password = "Enter your password";
-
-    if (Object.keys(next).length > 0) {
-      setErrors(next);
+    const trimmed = email.trim();
+    if (!trimmed) {
+      setErrors({ email: "Enter your email" });
+      return;
+    }
+    if (!/^\S+@\S+\.\S+$/.test(trimmed)) {
+      setErrors({ email: "Enter a valid email address" });
       return;
     }
 
     setErrors({});
     setSubmitting(true);
     try {
-      await signIn(email.trim(), password);
+      await signInWithEmailOnly(trimmed);
       // Skip onboarding when all 4 steps are done; otherwise resume it.
       const destination = await postSignInDestination();
       router.replace(destination);
       router.refresh();
     } catch (err) {
       const authErr = err as AuthFieldError;
-      setErrors({ [authErr.field]: authErr.message });
+      setErrors(
+        authErr.field === "email"
+          ? { email: authErr.message }
+          : { form: authErr.message }
+      );
       setSubmitting(false);
     }
   };
@@ -66,16 +68,6 @@ export default function SignInScreen() {
           onChange={(e) => setEmail(e.target.value)}
           error={errors.email}
         />
-        <AuthField
-          id="signin-password"
-          label="Password"
-          type="password"
-          autoComplete="current-password"
-          placeholder="••••••••"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          error={errors.password}
-        />
 
         {errors.form && (
           <p className="vt-field-error" role="alert">
@@ -88,21 +80,13 @@ export default function SignInScreen() {
           className="btn-primary mt-1 w-full"
           disabled={submitting}
         >
-          {submitting ? "Signing in…" : "Sign in →"}
+          {submitting ? "Signing in…" : "Continue →"}
         </button>
       </form>
 
-      <div className="text-muted mt-6 flex flex-col items-center gap-2 text-center text-sm">
-        <p>
-          New here?{" "}
-          <Link href="/auth/signup" className="link">
-            Create an account →
-          </Link>
-        </p>
-        <Link href="/auth/forgot-password" className="link">
-          Forgot password?
-        </Link>
-      </div>
+      <p className="text-muted mt-6 text-center text-sm">
+        Just enter your email — we&rsquo;ll sign you in or create your account.
+      </p>
     </AuthCard>
   );
 }

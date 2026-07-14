@@ -61,7 +61,7 @@ export default function BarsArt({ values }: BarsArtProps) {
             width={barW}
             height={h}
             rx={barW / 2.4}
-            fill={isLast ? "#eafff4" : `url(#bg-${id})`}
+            fill={isLast ? "var(--accent-soft)" : `url(#bg-${id})`}
             className="vee-bar"
             style={
               {

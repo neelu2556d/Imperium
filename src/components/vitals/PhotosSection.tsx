@@ -24,13 +24,26 @@ export default function PhotosSection() {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [viewing, setViewing] = useState<ProgressPhoto | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [choosing, setChoosing] = useState(false);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const libraryInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchPhotos().then(setPhotos);
   }, []);
 
-  const pick = () => inputRef.current?.click();
+  // Opens a source chooser — camera vs. photo library. On phones the
+  // `capture` input jumps straight to the camera, so without the library
+  // option there was no way to upload an existing photo.
+  const pick = () => setChoosing(true);
+  const pickCamera = () => {
+    setChoosing(false);
+    cameraInputRef.current?.click();
+  };
+  const pickLibrary = () => {
+    setChoosing(false);
+    libraryInputRef.current?.click();
+  };
 
   const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -68,11 +81,20 @@ export default function PhotosSection() {
         ) : undefined
       }
     >
+      {/* camera capture (phones open the camera directly) */}
       <input
-        ref={inputRef}
+        ref={cameraInputRef}
         type="file"
         accept="image/*"
         capture="environment"
+        className="hidden"
+        onChange={onFile}
+      />
+      {/* photo library / file picker — no `capture`, so phones offer the gallery */}
+      <input
+        ref={libraryInputRef}
+        type="file"
+        accept="image/*"
         className="hidden"
         onChange={onFile}
       />
@@ -154,10 +176,87 @@ export default function PhotosSection() {
         </p>
       )}
 
+      {choosing && (
+        <SourceChooser
+          onCamera={pickCamera}
+          onLibrary={pickLibrary}
+          onClose={() => setChoosing(false)}
+        />
+      )}
+
       {viewing && (
         <PhotoViewer photo={viewing} onClose={() => setViewing(null)} />
       )}
     </SectionCard>
+  );
+}
+
+/** Small modal asking where the photo should come from. */
+function SourceChooser({
+  onCamera,
+  onLibrary,
+  onClose,
+}: {
+  onCamera: () => void;
+  onLibrary: () => void;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  return (
+    <div
+      className="fixed inset-0 z-[60] flex items-end justify-center p-4 sm:items-center"
+      style={{ background: "rgba(0,0,0,0.7)" }}
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Add progress photo"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="flex w-full max-w-sm flex-col gap-2 rounded-2xl border p-4"
+        style={{
+          borderColor: "var(--color-border-strong)",
+          background: "var(--color-bg-elevated)",
+        }}
+      >
+        <p className="mono mb-1 text-center text-[0.62rem] uppercase tracking-[0.14em] text-muted">
+          Add progress photo
+        </p>
+        <button
+          type="button"
+          onClick={onCamera}
+          data-no-vitality
+          className="flex w-full items-center justify-center gap-2 rounded-xl border-0 px-4 py-3 text-sm text-fg"
+          style={{ background: "var(--color-card-elevated)" }}
+        >
+          <CameraIcon size={18} />
+          Take a photo
+        </button>
+        <button
+          type="button"
+          onClick={onLibrary}
+          data-no-vitality
+          className="flex w-full items-center justify-center gap-2 rounded-xl border-0 px-4 py-3 text-sm text-fg"
+          style={{ background: "var(--color-card-elevated)" }}
+        >
+          <PlusIcon size={18} />
+          Upload from library
+        </button>
+        <button
+          type="button"
+          onClick={onClose}
+          data-no-vitality
+          className="mt-1 w-full rounded-xl border-0 bg-transparent px-4 py-2 text-sm text-muted"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
   );
 }
 

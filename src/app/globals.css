@@ -104,7 +104,7 @@
    Theme palettes — swap the accent family only. Layout, fonts, spacing and
    the dark background are unaffected: these blocks touch nothing but the
    accent tokens. `data-theme` is set on <html> (default "mint").
-   ========================================================================= */
+
    Accent themes — a data-attribute on <html> swaps only the accent palette.
    The design-system structure (layout, fonts, spacing, dark background) is
    untouched; every accent token below feeds the shared --accent* family, which
@@ -125,10 +125,7 @@
   --accent-soft-rgb: 167 243 208;
 }
 
-  --accent-rgb: 110 231 183;
-  --accent-soft-rgb: 167 243 208;
-  --aurora-color: rgba(110, 231, 183, 0.08);
-}
+ 
 
 /* Ice Blue */
 [data-theme="blue"] {
@@ -143,10 +140,6 @@
   --accent-soft-rgb: 165 243 252;
 }
 
-  --accent-rgb: 103 232 249;
-  --accent-soft-rgb: 165 243 252;
-  --aurora-color: rgba(103, 232, 249, 0.08);
-}
 
 /* Crimson */
 [data-theme="red"] {
@@ -161,10 +154,7 @@
   --accent-soft-rgb: 252 165 165;
 }
 
-  --accent-rgb: 248 113 113;
-  --accent-soft-rgb: 252 165 165;
-  --aurora-color: rgba(248, 113, 113, 0.08);
-}
+  
 
 /* Gold */
 [data-theme="gold"] {
@@ -200,7 +190,7 @@ html.theme-anim * {
   }
 }
 
-@theme inline {
+@layer theme {
   --color-bg: var(--color-bg);
   --color-bg-elevated: var(--color-bg-elevated);
   --color-fg: var(--color-fg);

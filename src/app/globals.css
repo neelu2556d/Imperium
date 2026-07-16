@@ -1654,10 +1654,33 @@ select,
   }
 }
 
+/* …then each candle breathes like a live market tick: a slow glow pulse plus
+   a hair of vertical stretch, staggered per candle via inline delay. Lives on
+   a nested group so it never fights the mount rise-in over transform/opacity. */
+.bento-candle-live {
+  transform-origin: center bottom;
+  transform-box: fill-box;
+  animation: bentoCandleLive 2.8s ease-in-out infinite;
+}
+@keyframes bentoCandleLive {
+  0%,
+  100% {
+    transform: scaleY(1);
+    filter: drop-shadow(0 0 0 rgba(74, 222, 128, 0));
+    opacity: 0.85;
+  }
+  50% {
+    transform: scaleY(1.06);
+    filter: drop-shadow(0 0 5px rgba(74, 222, 128, 0.55));
+    opacity: 1;
+  }
+}
+
 /* offscreen: IntersectionObserver toggles this on the card/chart wrapper */
 .bento-motion-paused .bento-ekg-group,
 .bento-motion-paused .bento-dot-pulse,
 .bento-motion-paused .bento-waves-group,
+.bento-motion-paused .bento-candle-live,
 .bento-motion-paused .bento-gem-pulse,
 .bento-motion-paused .bento-gem-spin,
 .bento-motion-paused .vt-gem-svg {
@@ -1688,6 +1711,7 @@ select,
   .bento-ekg-group,
   .bento-dot-pulse,
   .bento-waves-group,
+  .bento-candle-live,
   .bento-gem-pulse,
   .bento-gem-spin {
     animation: none !important;

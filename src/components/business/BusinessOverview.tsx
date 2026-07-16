@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import LotCard from "@/components/business/LotCard";
 import {
   fetchOverview,
   generateBriefing,
@@ -20,9 +21,6 @@ function rupeesShort(n: number): string {
   if (v >= 1_000) return `₹${(v / 1_000).toFixed(1)}k`;
   return `₹${v.toLocaleString("en-IN")}`;
 }
-
-const metres = (n: number): string =>
-  `${Math.round(n).toLocaleString("en-IN")}m`;
 
 type LoadState =
   | { status: "loading" }
@@ -295,69 +293,11 @@ function ActiveLotsSection({
       ) : (
         <ul className="mt-3 space-y-2">
           {lots.map((lot) => (
-            <LotRow key={lot.lotId} lot={lot} />
+            <LotCard key={lot.lotId} lot={lot} />
           ))}
         </ul>
       )}
     </section>
-  );
-}
-
-function LotRow({ lot }: { lot: LotStock }) {
-  const low = lot.status === "low_stock";
-  const components: Array<[string, number]> = [
-    ["Top", lot.top.remaining],
-    ["Bottom", lot.bottom.remaining],
-    ["Dupatta", lot.dupatta.remaining],
-  ];
-
-  return (
-    <li className="rounded-xl border border-border bg-bg-elevated px-4 py-3">
-      <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <p className="truncate text-sm font-medium text-fg">
-            {lot.itemName}
-            {lot.dNo ? (
-              <span className="mono ml-2 text-[0.68rem] text-muted">
-                {lot.dNo}
-              </span>
-            ) : null}
-          </p>
-          <p className="mono text-[0.68rem] uppercase tracking-[0.14em] text-muted">
-            {lot.daysSince} day{lot.daysSince === 1 ? "" : "s"} in stock
-          </p>
-        </div>
-        {low ? (
-          <span
-            className="mono shrink-0 rounded-full border px-2.5 py-1 text-[0.6rem] uppercase tracking-[0.12em]"
-            style={{ color: "#f87171", borderColor: "#f87171" }}
-          >
-            Low
-          </span>
-        ) : null}
-      </div>
-      <div className="mt-3 grid grid-cols-3 gap-2">
-        {components.map(([name, remaining]) => (
-          <div
-            key={name}
-            className="rounded-lg border border-border px-2.5 py-2 text-center"
-          >
-            <p className="mono text-[0.58rem] uppercase tracking-[0.12em] text-muted">
-              {name}
-            </p>
-            <p
-              className="mt-1 text-sm font-semibold tabular-nums"
-              style={{
-                color:
-                  remaining < lot.threshold ? "#f87171" : "var(--accent)",
-              }}
-            >
-              {metres(remaining)}
-            </p>
-          </div>
-        ))}
-      </div>
-    </li>
   );
 }
 

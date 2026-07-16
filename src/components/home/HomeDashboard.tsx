@@ -148,7 +148,7 @@ export default function HomeDashboard() {
             index="05"
             label="Business"
             ariaLabel="Open Business"
-            icon={<TrendingUp size={16} color="#F59E0B" />}
+            icon={<TrendingUp size={16} color="#4ade80" />}
           >
             <BusinessChart />
           </Card>
@@ -642,27 +642,45 @@ const CANDLES = [
   { x: 200, wickTop: 5, wickBottom: 45, bodyY: 10, bodyH: 30 },
 ];
 
+const CANDLE_GREEN = "#4ade80";
+
 function BusinessChart() {
+  const chartRef = useMotionPause<HTMLDivElement>();
+
   return (
-    <div className="bento-chart">
+    <div ref={chartRef} className="bento-chart">
       <svg viewBox="0 0 240 80" preserveAspectRatio="none" aria-hidden>
         {CANDLES.map(({ x, wickTop, wickBottom, bodyY, bodyH }, i) => (
           <g
             key={x}
             className="bento-candle-in"
-            /* mount-only rise-in, staggered left to right; static afterwards */
+            /* mount-only rise-in, staggered left to right */
             style={{ animationDelay: `${i * 80}ms` }}
           >
-            <line
-              x1={x}
-              y1={wickTop}
-              x2={x}
-              y2={wickBottom}
-              stroke="#F59E0B"
-              strokeWidth={1.5}
-              vectorEffect="non-scaling-stroke"
-            />
-            <rect x={x - 7} y={bodyY} width={14} height={bodyH} rx={4} fill="#F59E0B" />
+            {/* live-market breathe on a nested group so its infinite
+                animation never fights the rise-in over the same properties */}
+            <g
+              className="bento-candle-live"
+              style={{ animationDelay: `${i * 350}ms` }}
+            >
+              <line
+                x1={x}
+                y1={wickTop}
+                x2={x}
+                y2={wickBottom}
+                stroke={CANDLE_GREEN}
+                strokeWidth={1.5}
+                vectorEffect="non-scaling-stroke"
+              />
+              <rect
+                x={x - 7}
+                y={bodyY}
+                width={14}
+                height={bodyH}
+                rx={4}
+                fill={CANDLE_GREEN}
+              />
+            </g>
           </g>
         ))}
       </svg>

@@ -79,6 +79,7 @@ export type LotStatus =
 
 export interface LotComponentStock {
   opening: number;
+  sold: number;
   remaining: number;
 }
 
@@ -262,6 +263,39 @@ async function fetchOverdue(
   }
 }
 
+/** Maps one `stock_register` view row to a LotStock. Shared with the Lots
+ *  page's data layer (`lots.ts`), which reads the same view unfiltered. */
+export function mapStockRegisterRow(
+  r: Record<string, unknown>,
+  now: Date
+): LotStock {
+  return {
+    lotId: String(r.lot_id),
+    itemName: String(r.item_name ?? "Untitled lot"),
+    dNo: String(r.d_no ?? ""),
+    designPhotoUrl: (r.design_photo_url as string | null) ?? null,
+    status: String(r.status) as LotStatus,
+    dateArrived: String(r.date_arrived ?? ""),
+    daysSince: r.date_arrived ? daysBetween(String(r.date_arrived), now) : 0,
+    threshold: num(r.low_stock_threshold_metres),
+    top: {
+      opening: num(r.top_opening_stock),
+      sold: num(r.top_sold),
+      remaining: num(r.top_remaining),
+    },
+    bottom: {
+      opening: num(r.bottom_opening_stock),
+      sold: num(r.bottom_sold),
+      remaining: num(r.bottom_remaining),
+    },
+    dupatta: {
+      opening: num(r.dupatta_opening_stock),
+      sold: num(r.dupatta_sold),
+      remaining: num(r.dupatta_remaining),
+    },
+  };
+}
+
 async function fetchActiveLotsWithStock(userId: string): Promise<LotStock[]> {
   try {
     const { data, error } = await supabase
@@ -273,28 +307,7 @@ async function fetchActiveLotsWithStock(userId: string): Promise<LotStock[]> {
     if (error) throw error;
 
     const now = new Date();
-    return (data ?? []).map((r) => ({
-      lotId: String(r.lot_id),
-      itemName: String(r.item_name ?? "Untitled lot"),
-      dNo: String(r.d_no ?? ""),
-      designPhotoUrl: (r.design_photo_url as string | null) ?? null,
-      status: String(r.status) as LotStatus,
-      dateArrived: String(r.date_arrived ?? ""),
-      daysSince: r.date_arrived ? daysBetween(String(r.date_arrived), now) : 0,
-      threshold: num(r.low_stock_threshold_metres),
-      top: {
-        opening: num(r.top_opening_stock),
-        remaining: num(r.top_remaining),
-      },
-      bottom: {
-        opening: num(r.bottom_opening_stock),
-        remaining: num(r.bottom_remaining),
-      },
-      dupatta: {
-        opening: num(r.dupatta_opening_stock),
-        remaining: num(r.dupatta_remaining),
-      },
-    }));
+    return (data ?? []).map((r) => mapStockRegisterRow(r, now));
   } catch {
     return [];
   }

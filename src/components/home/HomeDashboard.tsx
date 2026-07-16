@@ -514,8 +514,11 @@ function TrainChart({ volumes }: { volumes: number[] }) {
   );
 }
 
+/* Amplitude is tuned for the 2-row-tall card: the stretched
+   (preserveAspectRatio="none") svg renders ~3× taller than a single row,
+   so the spike is ±½ range in viewBox units to land at a sane px height. */
 const EKG_PATH =
-  "M 0,35 L 55,35 L 68,35 L 78,8 L 88,60 L 98,30 L 110,35 L 300,35";
+  "M 0,35 L 55,35 L 68,35 L 78,26 L 88,43.5 L 98,33.5 L 110,35 L 300,35";
 
 function VitalsChart() {
   const chartRef = useMotionPause<HTMLDivElement>();
@@ -557,12 +560,15 @@ function VitalsChart() {
 
 /* Both waves span x 0→200 (one viewBox width) so a doubled copy at
    translate(200,0) tiles seamlessly. The original wave's 75-unit period is
-   nudged to 200/3 ≈ 66.7 (same amplitude) so exactly three oscillations fit
-   the tile; the group scrolls one width per loop. */
+   nudged to 200/3 ≈ 66.7 so exactly three oscillations fit the tile; the
+   group scrolls one width per loop. Amplitude is tuned for the 3-row-tall
+   card — the stretched (preserveAspectRatio="none") svg renders ~1.6× taller
+   than before, so the waves are ±0.6 range in viewBox units to keep the same
+   rendered px height. */
 const FUEL_WAVE_1 =
-  "M 0,45 C 22.2,20 44.4,70 66.7,45 C 88.9,20 111.1,70 133.3,45 C 155.6,20 177.8,70 200,45";
+  "M 0,45 C 22.2,30 44.4,60 66.7,45 C 88.9,30 111.1,60 133.3,45 C 155.6,30 177.8,60 200,45";
 const FUEL_WAVE_2 =
-  "M 0,75 C 22.2,55 44.4,95 66.7,75 C 88.9,55 111.1,95 133.3,75 C 155.6,55 177.8,95 200,75";
+  "M 0,75 C 22.2,63 44.4,87 66.7,75 C 88.9,63 111.1,87 133.3,75 C 155.6,63 177.8,87 200,75";
 
 function FuelChart() {
   const reduced = useReducedMotion();
@@ -617,9 +623,9 @@ function FuelChart() {
         )}
       </svg>
       {reduced && (
-        /* on wave 1 near the right end — the x=150, y=45 node of the curve */
+        /* on wave 1 near the right end — the x=133.3, y=45 node of the curve */
         <ChartDot
-          leftPct={75}
+          leftPct={66.7}
           topPct={37.5}
           color="var(--accent)"
           glow="5px var(--accent)"

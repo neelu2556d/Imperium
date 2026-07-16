@@ -1559,6 +1559,112 @@ select,
     stroke 600ms ease;
 }
 
+/* ----- 15. home bento cards — ambient chart motion -----
+   CSS transforms on SVG children act in viewBox user units, so the px
+   distances below equal one viewBox width per loop regardless of how the
+   stretched (preserveAspectRatio="none") svg renders. Path-following dots
+   are SMIL in HomeDashboard.tsx (CSS can't follow a path); both kinds are
+   paused offscreen — .bento-motion-paused here, svg.pauseAnimations() for
+   SMIL — by the card's IntersectionObserver. */
+
+/* Vitals: the EKG line (two tiled copies) scrolls one viewBox width left */
+.bento-ekg-group {
+  animation: bentoEkgScroll 2.5s linear infinite;
+}
+@keyframes bentoEkgScroll {
+  from {
+    transform: translateX(0px);
+  }
+  to {
+    transform: translateX(-300px);
+  }
+}
+
+/* Vitals: the fixed dot pulses in place (scale ≈ r 5→7) */
+.bento-dot-pulse {
+  animation: bentoDotPulse 2.5s ease-in-out infinite;
+}
+@keyframes bentoDotPulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.4);
+    opacity: 0.6;
+  }
+}
+
+/* Fuel: both sine waves (tiled copies) flow one viewBox width left */
+.bento-waves-group {
+  animation: bentoWaveFlow 4s linear infinite;
+}
+@keyframes bentoWaveFlow {
+  from {
+    transform: translateX(0px);
+  }
+  to {
+    transform: translateX(-200px);
+  }
+}
+
+/* Imperium: gem glow breathes… */
+.bento-gem-pulse {
+  display: inline-flex;
+  animation: bentoGemPulse 3s ease-in-out infinite;
+}
+@keyframes bentoGemPulse {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 6px var(--accent-glow));
+  }
+  50% {
+    filter: drop-shadow(0 0 18px var(--accent-glow));
+  }
+}
+/* …on a separate wrapper from the slow spin, so filter and transform
+   animations don't fight over one element */
+.bento-gem-spin {
+  display: inline-flex;
+  animation: bentoGemSpin 20s linear infinite;
+}
+@keyframes bentoGemSpin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Business: candles rise in once on mount (stagger via inline delay),
+   then sit completely static */
+.bento-candle-in {
+  animation: bentoCandleIn 350ms ease both;
+}
+@keyframes bentoCandleIn {
+  from {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* offscreen: IntersectionObserver toggles this on the card/chart wrapper */
+.bento-motion-paused .bento-ekg-group,
+.bento-motion-paused .bento-dot-pulse,
+.bento-motion-paused .bento-waves-group,
+.bento-motion-paused .bento-gem-pulse,
+.bento-motion-paused .bento-gem-spin,
+.bento-motion-paused .vt-gem-svg {
+  animation-play-state: paused;
+}
+
+
 /* ----- reduced-motion: collapse every motion-pass animation ----- */
 @media (prefers-reduced-motion: reduce) {
   .vt-page-enter,
@@ -1578,8 +1684,17 @@ select,
     animation-iteration-count: 1 !important;
   }
   .vt-water-wave,
-  .vt-toast-bar {
+  .vt-toast-bar,
+  .bento-ekg-group,
+  .bento-dot-pulse,
+  .bento-waves-group,
+  .bento-gem-pulse,
+  .bento-gem-spin {
     animation: none !important;
+  }
+  .bento-candle-in {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
   }
   .vt-draw {
     stroke-dashoffset: 0 !important;

@@ -1,11 +1,18 @@
 "use client";
 
-import { useEffect, useState, type KeyboardEvent, type ReactNode } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type ReactNode,
+} from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Activity, Droplets, Dumbbell, TrendingUp } from "lucide-react";
 import ImperiumGem from "@/components/welcome/ImperiumGem";
 import { GearIcon } from "@/components/train/icons";
+import { useReducedMotion } from "@/lib/motion";
 import { useOwner } from "@/lib/useOwner";
 import { formatTime, formatToday, getGreeting } from "@/lib/home/datetime";
 import {
@@ -229,10 +236,13 @@ const TRACES = [
 
 function ImperiumCard() {
   const router = useRouter();
+  const reduced = useReducedMotion();
+  const cardRef = useMotionPause<HTMLDivElement>();
   const open = () => router.push("/mentor");
 
   return (
     <div
+      ref={cardRef}
       role="button"
       tabIndex={0}
       aria-label="Open Imperium, your AI mentor"
@@ -251,9 +261,10 @@ function ImperiumCard() {
         preserveAspectRatio="none"
         aria-hidden
       >
-        {TRACES.map((d) => (
+        {TRACES.map((d, i) => (
           <path
             key={d}
+            id={`trace-${i}`}
             d={d}
             stroke="rgba(255,255,255,0.05)"
             strokeWidth={1}
@@ -261,11 +272,44 @@ function ImperiumCard() {
             vectorEffect="non-scaling-stroke"
           />
         ))}
+        {/* one accent dot per trace, staggered so they fire in sequence */}
+        {!reduced &&
+          TRACES.map((d, i) => (
+            <MotionDot
+              key={d}
+              size={4}
+              color="var(--accent)"
+              glow="3px var(--accent)"
+              opacity={0}
+            >
+              <animateMotion
+                dur="2s"
+                repeatCount="indefinite"
+                begin={`${(i * 0.7).toFixed(1)}s`}
+              >
+                <mpath href={`#trace-${i}`} />
+              </animateMotion>
+              <animate
+                attributeName="opacity"
+                values="0;1;1;0"
+                keyTimes="0;0.1;0.8;1"
+                dur="2s"
+                repeatCount="indefinite"
+                begin={`${(i * 0.7).toFixed(1)}s`}
+              />
+            </MotionDot>
+          ))}
       </svg>
       <span className="bento-index">03</span>
       <div className="bento-imperium-inner">
         <div className="bento-gem-box">
-          <ImperiumGem size={56} showChevron={false} />
+          {/* nested wrappers: pulse animates filter, spin animates transform —
+              combining them on one element would overwrite the gem's float */}
+          <span className="bento-gem-pulse">
+            <span className="bento-gem-spin">
+              <ImperiumGem size={56} showChevron={false} />
+            </span>
+          </span>
         </div>
         <p className="bento-imperium-name" data-no-vitality>
           Imperium
@@ -282,22 +326,96 @@ function ImperiumCard() {
    stay at their specified px. Endpoint dots are HTML, not <circle>: the
    non-uniform stretch would squash a circle into an ellipse on narrow
    cards, while a percent-positioned dot stays round on the same point.
+
+   Ambient motion: dots that travel a path use SMIL (<animateMotion>) —
+   CSS can't follow a path — while the scrolling EKG/waves, dot pulse, gem
+   pulse/spin and candle rise-ins are CSS (see the bento block in the
+   globals.css motion pass). SMIL ignores both prefers-reduced-motion and
+   CSS animation-play-state, so useReducedMotion gates the SMIL dots at
+   render time (static dots instead) and useMotionPause stops both kinds
+   of animation while a card is scrolled out of the viewport.
    ======================================================================== */
+
+/**
+ * Pauses a card's infinite animations while it is offscreen: an
+ * IntersectionObserver toggles .bento-motion-paused (CSS animations pick
+ * this up via animation-play-state) and pause/unpauses the SMIL timeline
+ * of every svg inside the observed element.
+ */
+function useMotionPause<T extends HTMLElement>() {
+  const ref = useRef<T>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver(([entry]) => {
+      const visible = entry.isIntersecting;
+      el.classList.toggle("bento-motion-paused", !visible);
+      el.querySelectorAll("svg").forEach((svg) => {
+        if (visible) svg.unpauseAnimations();
+        else svg.pauseAnimations();
+      });
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+  return ref;
+}
+
+/**
+ * A round dot that can ride an <animateMotion> inside a stretched svg:
+ * a hairline path painted only by its round cap, with a non-scaling
+ * stroke, stays a screen-space circle of `size` px where a real <circle>
+ * would be squashed into an ellipse by the non-uniform viewBox scale.
+ * `children` is the SMIL machinery (<animateMotion>, <animate>). Pass
+ * opacity 0 when an opacity <animate> with a `begin` delay fades the dot
+ * in, so it stays hidden until its timeline starts.
+ */
+function MotionDot({
+  size,
+  color,
+  glow,
+  opacity,
+  children,
+}: {
+  size: number;
+  color: string;
+  glow: string;
+  opacity?: number;
+  children: ReactNode;
+}) {
+  return (
+    <path
+      d="M 0,0 L 0.01,0.01"
+      stroke={color}
+      strokeWidth={size}
+      strokeLinecap="round"
+      fill="none"
+      opacity={opacity}
+      vectorEffect="non-scaling-stroke"
+      style={{ filter: `drop-shadow(0 0 ${glow})` }}
+    >
+      {children}
+    </path>
+  );
+}
 
 function ChartDot({
   leftPct,
   topPct,
   color,
   glow,
+  className,
 }: {
   leftPct: number;
   topPct: number;
   color: string;
   glow: string;
+  className?: string;
 }) {
   return (
     <span
       aria-hidden
+      className={className}
       style={{
         position: "absolute",
         left: `${leftPct}%`,
@@ -350,46 +468,84 @@ function smoothPath(xs: number[], ys: number[]): string {
 }
 
 function TrainChart({ volumes }: { volumes: number[] }) {
+  const reduced = useReducedMotion();
+  const chartRef = useMotionPause<HTMLDivElement>();
   const ys = trainYs(volumes);
   const n = ys.length;
   // 10-unit inset each side keeps the endpoint dot inside the clipped area.
   const xs = ys.map((_, i) => 10 + (i * 480) / (n - 1));
 
   return (
-    <div className="bento-chart">
+    <div ref={chartRef} className="bento-chart">
       <svg viewBox="0 0 500 100" preserveAspectRatio="none" aria-hidden>
         <path
+          id="train-path"
           d={smoothPath(xs, ys)}
           stroke="var(--accent)"
           strokeWidth={1.5}
           fill="none"
           vectorEffect="non-scaling-stroke"
         />
+        {/* the glowing dot travels the sparkline; the line itself is static */}
+        {!reduced && (
+          <MotionDot size={10} color="#fff" glow="5px white" opacity={0}>
+            <animateMotion dur="5s" repeatCount="indefinite" calcMode="linear">
+              <mpath href="#train-path" />
+            </animateMotion>
+            <animate
+              attributeName="opacity"
+              values="0;1;1;1;0"
+              keyTimes="0;0.05;0.75;0.92;1"
+              dur="5s"
+              repeatCount="indefinite"
+            />
+          </MotionDot>
+        )}
       </svg>
-      <ChartDot
-        leftPct={(xs[n - 1] / 500) * 100}
-        topPct={ys[n - 1]}
-        color="#fff"
-        glow="4px white"
-      />
+      {reduced && (
+        <ChartDot
+          leftPct={(xs[n - 1] / 500) * 100}
+          topPct={ys[n - 1]}
+          color="#fff"
+          glow="4px white"
+        />
+      )}
     </div>
   );
 }
 
+const EKG_PATH =
+  "M 0,35 L 55,35 L 68,35 L 78,8 L 88,60 L 98,30 L 110,35 L 300,35";
+
 function VitalsChart() {
+  const chartRef = useMotionPause<HTMLDivElement>();
+
   return (
-    <div className="bento-chart">
+    <div ref={chartRef} className="bento-chart">
       <svg viewBox="0 0 300 70" preserveAspectRatio="none" aria-hidden>
-        <path
-          d="M 0,35 L 55,35 L 68,35 L 78,8 L 88,60 L 98,30 L 110,35 L 300,35"
-          stroke="var(--accent)"
-          strokeWidth={1.5}
-          fill="none"
-          vectorEffect="non-scaling-stroke"
-        />
+        {/* two copies, one viewBox-width apart, scrolled left as a unit —
+            when copy 2 reaches copy 1's start the loop restarts seamlessly */}
+        <g className="bento-ekg-group">
+          <path
+            d={EKG_PATH}
+            stroke="var(--accent)"
+            strokeWidth={1.5}
+            fill="none"
+            vectorEffect="non-scaling-stroke"
+          />
+          <path
+            d={EKG_PATH}
+            transform="translate(300, 0)"
+            stroke="var(--accent)"
+            strokeWidth={1.5}
+            fill="none"
+            vectorEffect="non-scaling-stroke"
+          />
+        </g>
       </svg>
-      {/* x=240, y=35 of the 300×70 viewBox */}
+      {/* fixed at x=240, y=35 of the 300×70 viewBox — the line passes under it */}
       <ChartDot
+        className="bento-dot-pulse"
         leftPct={80}
         topPct={50}
         color="var(--accent)"
@@ -399,33 +555,76 @@ function VitalsChart() {
   );
 }
 
+/* Both waves span x 0→200 (one viewBox width) so a doubled copy at
+   translate(200,0) tiles seamlessly. The original wave's 75-unit period is
+   nudged to 200/3 ≈ 66.7 (same amplitude) so exactly three oscillations fit
+   the tile; the group scrolls one width per loop. */
+const FUEL_WAVE_1 =
+  "M 0,45 C 22.2,20 44.4,70 66.7,45 C 88.9,20 111.1,70 133.3,45 C 155.6,20 177.8,70 200,45";
+const FUEL_WAVE_2 =
+  "M 0,75 C 22.2,55 44.4,95 66.7,75 C 88.9,55 111.1,95 133.3,75 C 155.6,55 177.8,95 200,75";
+
 function FuelChart() {
+  const reduced = useReducedMotion();
+  const chartRef = useMotionPause<HTMLDivElement>();
+
   return (
-    <div className="bento-chart">
+    <div ref={chartRef} className="bento-chart">
       <svg viewBox="0 0 200 120" preserveAspectRatio="none" aria-hidden>
-        <path
-          d="M 0,45 C 25,20 50,70 75,45 C 100,20 125,70 150,45 C 175,20 200,70 225,45"
-          stroke="var(--accent)"
-          strokeWidth={1.5}
-          fill="none"
-          opacity={0.9}
-          vectorEffect="non-scaling-stroke"
-        />
-        <path
-          d="M 0,75 C 25,55 50,95 75,75 C 100,55 125,95 150,75 C 175,55 200,95 225,75"
-          stroke="rgba(255,255,255,0.18)"
-          strokeWidth={1}
-          fill="none"
-          vectorEffect="non-scaling-stroke"
-        />
+        <g className="bento-waves-group">
+          <path
+            id="fuel-wave-1"
+            d={FUEL_WAVE_1}
+            stroke="var(--accent)"
+            strokeWidth={1.5}
+            fill="none"
+            opacity={0.9}
+            vectorEffect="non-scaling-stroke"
+          />
+          <path
+            d={FUEL_WAVE_1}
+            transform="translate(200, 0)"
+            stroke="var(--accent)"
+            strokeWidth={1.5}
+            fill="none"
+            opacity={0.9}
+            vectorEffect="non-scaling-stroke"
+          />
+          <path
+            d={FUEL_WAVE_2}
+            stroke="rgba(255,255,255,0.18)"
+            strokeWidth={1}
+            fill="none"
+            vectorEffect="non-scaling-stroke"
+          />
+          <path
+            d={FUEL_WAVE_2}
+            transform="translate(200, 0)"
+            stroke="rgba(255,255,255,0.18)"
+            strokeWidth={1}
+            fill="none"
+            vectorEffect="non-scaling-stroke"
+          />
+        </g>
+        {/* the dot retraces wave 1 at the group's scroll speed, so it appears
+            to sit on and travel with the wave */}
+        {!reduced && (
+          <MotionDot size={10} color="var(--accent)" glow="5px var(--accent)">
+            <animateMotion dur="4s" repeatCount="indefinite" calcMode="linear">
+              <mpath href="#fuel-wave-1" />
+            </animateMotion>
+          </MotionDot>
+        )}
       </svg>
-      {/* on wave 1 near the right end — the x=150, y=45 node of the curve */}
-      <ChartDot
-        leftPct={75}
-        topPct={37.5}
-        color="var(--accent)"
-        glow="5px var(--accent)"
-      />
+      {reduced && (
+        /* on wave 1 near the right end — the x=150, y=45 node of the curve */
+        <ChartDot
+          leftPct={75}
+          topPct={37.5}
+          color="var(--accent)"
+          glow="5px var(--accent)"
+        />
+      )}
     </div>
   );
 }
@@ -441,8 +640,13 @@ function BusinessChart() {
   return (
     <div className="bento-chart">
       <svg viewBox="0 0 240 80" preserveAspectRatio="none" aria-hidden>
-        {CANDLES.map(({ x, wickTop, wickBottom, bodyY, bodyH }) => (
-          <g key={x}>
+        {CANDLES.map(({ x, wickTop, wickBottom, bodyY, bodyH }, i) => (
+          <g
+            key={x}
+            className="bento-candle-in"
+            /* mount-only rise-in, staggered left to right; static afterwards */
+            style={{ animationDelay: `${i * 80}ms` }}
+          >
             <line
               x1={x}
               y1={wickTop}

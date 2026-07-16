@@ -190,12 +190,12 @@ html.theme-anim * {
   }
 }
 
-@layer theme {
+@theme inline {
   --color-bg: var(--color-bg);
   --color-bg-elevated: var(--color-bg-elevated);
   --color-fg: var(--color-fg);
 
-  --color-mint: var(--color-mint);
+  --color-mint: var(--color-mint);  
   --color-mint-hover: var(--color-mint-hover);
   --color-mint-deep: var(--color-mint-deep);
   --color-mint-glow: var(--color-mint-glow);
@@ -855,73 +855,6 @@ select,
   }
 }
 
-/* ----- /home: full-bleed dashboard grid -----
-   Mobile: a single stacked column. From md up it becomes the reference
-   masonry — a wide TRAIN banner across the top, a tall FUEL rail on the
-   right, and the IMPERIUM mentor as the centrepiece flanked by VITALS. The
-   grid fills the viewport height so cards occupy the available space rather
-   than floating centred. */
-.home-grid {
-  display: grid;
-  gap: 0.75rem;
-  grid-template-columns: 1fr;
-  grid-template-areas:
-    "train"
-    "imperium"
-    "vitals"
-    "fuel";
-}
-
-.home-grid > .area-train {
-  grid-area: train;
-}
-.home-grid > .area-vitals {
-  grid-area: vitals;
-}
-.home-grid > .area-imperium {
-  grid-area: imperium;
-}
-.home-grid > .area-fuel {
-  grid-area: fuel;
-}
-
-@media (min-width: 768px) {
-  .home-grid {
-    gap: 1rem;
-    grid-template-columns: 1fr 1.6fr 1fr;
-    grid-template-rows: minmax(150px, 24vh) minmax(240px, 1fr);
-    grid-template-areas:
-      "train  train    fuel"
-      "vitals imperium fuel";
-    min-height: calc(100dvh - 12rem);
-  }
-}
-
-@media (min-width: 1280px) {
-  .home-grid {
-    gap: 1.25rem;
-    grid-template-columns: 1fr 1.8fr 1fr;
-  }
-}
-
-/* ----- /home: bento cards (tactile press + mint focus glow) ----- */
-.home-card {
-  cursor: pointer;
-  overflow: hidden;
-  outline: none;
-  transition: transform var(--duration-fast) var(--ease-out-soft),
-    box-shadow var(--duration-DEFAULT) var(--ease-DEFAULT);
-}
-
-.home-card:hover,
-.home-card:focus-visible {
-  box-shadow: var(--shadow-glass), 0 0 0 1px rgb(var(--accent-rgb) / 0.2);
-}
-
-.home-card:active {
-  transform: scale(0.97);
-}
-
 /* ----- /home: skeleton shimmer while a card's data loads ----- */
 .home-skeleton {
   background: linear-gradient(
@@ -944,12 +877,6 @@ select,
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .home-card {
-    transition: box-shadow var(--duration-DEFAULT) var(--ease-DEFAULT);
-  }
-  .home-card:active {
-    transform: none;
-  }
   .home-skeleton {
     animation: none;
   }
@@ -1148,423 +1075,181 @@ select,
 }
 
 /* =========================================================================
-   /home: "Vitality" bento tiles
-   Dark glass tiles on a responsive grid, each carrying an animated SVG art
-   layer (self-drawing wires, breathing rings, growing bars, orbiting motes).
-   Modelled on the ep0-khaki Vitality dashboard, retinted to Imperium tokens.
+   /home: 5-card bento grid (Train · Vitals · Imperium · Fuel · Business)
+   Fixed-height rows; the Business row exists only for the owner
+   (.has-business), so everyone else gets the 3-row grid.
    ========================================================================= */
 
-.vee-grid {
-  --vee-gap: 14px;
-  position: relative;
+.bento-grid {
   display: grid;
   width: 100%;
   max-width: 1000px;
   margin-inline: auto;
-  gap: var(--vee-gap);
-  grid-template-columns: repeat(2, 1fr);
-  grid-auto-rows: minmax(148px, 30vw);
-  grid-template-areas:
-    "train  train"
-    "vitals fuel"
-    "brand  brand";
+  grid-template-columns: 1fr 1.1fr 0.85fr;
+  grid-template-rows: 200px 190px 190px;
+  gap: 10px;
 }
 
-.vee-grid > .area-train {
-  grid-area: train;
-}
-.vee-grid > .area-vitals {
-  grid-area: vitals;
-}
-.vee-grid > .area-fuel {
-  grid-area: fuel;
-}
-.vee-grid > .area-brand {
-  grid-area: brand;
-}
-.vee-grid > .area-business {
-  grid-area: business;
+.bento-grid.has-business {
+  grid-template-rows: 200px 190px 190px 180px;
 }
 
-/* Owner-only layout: a full-width Business strip slots in above the brand tile
-   (mobile) / along the bottom (desktop). Applied via .has-business so the base
-   four-tile grid is untouched for everyone else. */
-.vee-grid.has-business {
-  grid-template-areas:
-    "train    train"
-    "vitals   fuel"
-    "business business"
-    "brand    brand";
+.bento-train {
+  grid-column: 1 / 3;
+  grid-row: 1 / 2;
+}
+.bento-vitals {
+  grid-column: 1 / 2;
+  grid-row: 2 / 3;
+}
+.bento-imperium {
+  grid-column: 2 / 3;
+  grid-row: 2 / 4;
+}
+.bento-fuel {
+  grid-column: 3 / 4;
+  grid-row: 1 / 3;
+}
+.bento-business {
+  grid-column: 1 / 4;
+  grid-row: 4 / 5;
 }
 
-@media (min-width: 768px) {
-  .vee-grid {
-    --vee-gap: 18px;
-    grid-template-columns: repeat(4, 1fr);
-    grid-auto-rows: minmax(150px, 15vw);
-    grid-template-areas:
-      "train  train  fuel   brand"
-      "vitals vitals fuel   brand";
-  }
-  .vee-grid.has-business {
-    grid-template-areas:
-      "train    train    fuel     brand"
-      "vitals   vitals   fuel     brand"
-      "business business business business";
-  }
-}
-
-/* ----- the tile shell (glass, chrome, hover) ----- */
-.vee-tile {
+/* ----- shared card shell ----- */
+.bento-card {
   position: relative;
   overflow: hidden;
-  isolation: isolate;
-  display: block;
-  height: 100%;
-  border-radius: 20px;
-  border: 1px solid rgb(var(--accent-soft-rgb) / 0.1);
-  background: linear-gradient(
-    165deg,
-    rgba(16, 26, 22, 0.55),
-    rgba(7, 12, 10, 0.4)
-  );
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05),
-    0 22px 50px -30px rgba(0, 0, 0, 0.75);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 16px;
+  padding: 16px;
   cursor: pointer;
   outline: none;
-  text-decoration: none;
-  transition: border-color 0.4s var(--ease-premium),
-    background 0.4s var(--ease-premium), box-shadow 0.4s var(--ease-premium),
-    transform var(--duration-fast) var(--ease-out-soft);
-}
-
-.vee-tile:hover,
-.vee-tile:focus-visible {
-  border-color: rgb(var(--accent-rgb) / 0.3);
-  background: linear-gradient(
-    165deg,
-    rgba(22, 34, 29, 0.62),
-    rgba(9, 15, 13, 0.46)
-  );
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07),
-    0 26px 56px -28px rgba(0, 0, 0, 0.8);
-}
-
-.vee-tile:active {
-  transform: scale(0.97);
   transition: transform var(--duration-fast) var(--ease-out-soft);
 }
 
-/* soft radial glow high on the tile */
-.vee-tile .vee-aurora {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  pointer-events: none;
-  background: radial-gradient(
-    ellipse 85% 75% at 58% 38%,
-    rgb(var(--accent-rgb) / 0.07),
-    transparent 64%
-  );
+.bento-card:active {
+  transform: scale(0.98);
 }
 
-/* the animated art fills the tile behind the text chrome */
-.vee-tile .vee-art {
+.bento-card:focus-visible {
+  border-color: rgb(var(--accent-rgb) / 0.3);
+}
+
+/* ----- card chrome ----- */
+.bento-index {
   position: absolute;
-  inset: 0;
+  top: 14px;
+  left: 16px;
   z-index: 2;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-}
-.vee-tile .vee-art svg {
-  width: 100%;
-  height: 100%;
-  display: block;
-}
-
-/* bottom-up fade so text stays legible over the art */
-.vee-tile::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 3;
-  pointer-events: none;
-  background: linear-gradient(
-    0deg,
-    rgba(4, 7, 6, 0.62) 0,
-    rgba(4, 7, 6, 0.16) 24%,
-    transparent 46%
-  );
-}
-
-/* ----- text chrome (index / glyph / stat / label / arrow) ----- */
-.vee-tile .vee-index {
-  position: absolute;
-  top: 15px;
-  left: 18px;
-  z-index: 6;
   font-family: var(--font-mono);
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.22);
+}
+
+.bento-icon {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  z-index: 2;
+  display: inline-flex;
+  color: rgba(255, 255, 255, 0.28);
+}
+
+.bento-sub {
+  position: absolute;
+  bottom: 38px;
+  left: 16px;
+  z-index: 2;
+  font-family: var(--font-sans);
   font-size: 10px;
   letter-spacing: 0.12em;
-  color: rgba(255, 255, 255, 0.38);
+  color: var(--accent);
 }
 
-.vee-tile .vee-glyph {
+.bento-label {
   position: absolute;
-  top: 13px;
-  right: 15px;
-  z-index: 6;
-  width: 20px;
-  height: 20px;
-  color: var(--color-mint);
-  opacity: 0.42;
-}
-
-.vee-tile .vee-stat {
-  position: absolute;
-  left: 18px;
-  bottom: 44px;
-  z-index: 6;
-  font-family: var(--font-mono);
-  font-size: 16px;
-  font-weight: 500;
-  letter-spacing: 0.01em;
-  color: var(--color-mint);
-}
-.vee-tile .vee-stat i {
-  font-style: normal;
-  font-size: 10px;
-  font-weight: 500;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.5);
-  margin-left: 5px;
-}
-
-.vee-tile .vee-label {
-  position: absolute;
-  left: 18px;
-  bottom: 15px;
-  z-index: 6;
+  bottom: 16px;
+  left: 16px;
+  z-index: 2;
   font-family: var(--font-serif);
   font-style: italic;
-  font-size: 21px;
+  font-size: 22px;
+  line-height: 1;
   color: #fff;
 }
 
-.vee-tile .vee-arrow {
+.bento-arrow {
   position: absolute;
-  right: 16px;
   bottom: 16px;
-  z-index: 6;
-  color: rgba(255, 255, 255, 0.4);
-  transition: color 0.3s var(--ease-premium),
-    transform 0.3s var(--ease-premium);
-}
-.vee-tile:hover .vee-arrow {
-  color: var(--color-mint);
-  transform: translateX(2px);
+  right: 16px;
+  z-index: 2;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.35);
 }
 
-/* per-tile accent recolours the stat + glyph */
-.vee-tile.tile-vitals .vee-stat {
-  color: rgba(255, 255, 255, 0.9);
+/* ----- chart layer ----- */
+.bento-chart {
+  position: absolute;
+  top: 40px;
+  right: 0;
+  bottom: 52px;
+  left: 0;
+  overflow: hidden;
 }
-.vee-tile.tile-vitals.is-warn .vee-stat {
-  color: var(--color-amber);
-}
-.vee-tile.tile-fuel .vee-stat {
-  color: var(--color-mint);
+.bento-chart > svg {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
-/* ----- the brand (Imperium) tile: centred breathing gem ----- */
-.vee-tile.tile-brand {
+/* ----- Imperium centrepiece ----- */
+.bento-traces {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.bento-imperium-inner {
+  position: relative;
+  z-index: 1;
   display: flex;
+  height: 100%;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   text-align: center;
 }
-.vee-tile.tile-brand .vee-disc {
-  position: absolute;
-  left: 50%;
-  top: 44%;
-  width: min(320px, 90%);
-  aspect-ratio: 1;
-  transform: translate(-50%, -50%);
-  z-index: 1;
-  pointer-events: none;
-  background: radial-gradient(
-    circle,
-    rgb(var(--accent-rgb) / 0.12) 0,
-    rgb(var(--accent-rgb) / 0.05) 42%,
-    transparent 66%
-  );
-  animation: veeDisc 9s var(--ease-premium) infinite;
+
+.bento-gem-box {
+  display: inline-flex;
+  margin-bottom: 16px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
 }
-.vee-tile.tile-brand .vee-brand-inner {
-  position: relative;
-  z-index: 6;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+
+.bento-imperium-name {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 26px;
+  color: #fff;
 }
-.vee-tile.tile-brand .vee-kicker {
-  margin-top: 10px;
-  font-family: var(--font-mono);
+
+.bento-imperium-kicker {
+  margin-top: 6px;
+  font-family: var(--font-sans);
   font-size: 10px;
-  font-weight: 500;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--color-mint);
-  opacity: 0.9;
-}
-
-/* ----- summary popover (long-press) ----- */
-.vee-tile .vee-summary {
-  position: absolute;
-  inset-inline: 12px;
-  bottom: 12px;
-  z-index: 8;
-  border-radius: 10px;
-  border: 1px solid var(--color-border-strong);
-  background: rgba(10, 10, 10, 0.95);
-  backdrop-filter: blur(8px);
-  padding: 8px 12px;
-  font-size: 0.72rem;
-  color: var(--color-muted-strong);
-  pointer-events: none;
-}
-
-/* =========================================================================
-   Tile-art animation primitives (consumed by the SVG art components)
-   ========================================================================= */
-
-/* a stroke that draws itself in once, then holds */
-.vee-draw {
-  stroke-dasharray: var(--len, 100);
-  stroke-dashoffset: var(--len, 100);
-  animation: veeDraw 1.5s var(--ease-premium) var(--d, 0s) forwards;
-}
-@keyframes veeDraw {
-  to {
-    stroke-dashoffset: 0;
-  }
-}
-
-/* a node that pops in then softly pulses */
-.vee-node {
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: veeNodeIn 0.6s var(--ease-premium) var(--d, 0s) both,
-    veeNodePulse 3.2s ease-in-out calc(var(--d, 0s) + 0.6s) infinite;
-}
-@keyframes veeNodeIn {
-  from {
-    transform: scale(0);
-    opacity: 0;
-  }
-  to {
-    transform: scale(1);
-    opacity: 1;
-  }
-}
-@keyframes veeNodePulse {
-  0%,
-  100% {
-    opacity: 0.55;
-  }
-  50% {
-    opacity: 1;
-  }
-}
-
-/* a bar that grows up from its baseline */
-.vee-bar {
-  transform-box: fill-box;
-  transform-origin: center bottom;
-  transform: scaleY(0);
-  animation: veeBarGrow 0.7s var(--ease-premium) var(--d, 0s) forwards;
-}
-@keyframes veeBarGrow {
-  to {
-    transform: scaleY(1);
-  }
-}
-
-/* concentric rings that ease in then breathe */
-.vee-ring {
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: veeRingIn 0.7s var(--ease-premium) var(--d, 0s) both,
-    veeRingBreathe 5s ease-in-out calc(var(--d, 0s) + 0.7s) infinite;
-}
-@keyframes veeRingIn {
-  from {
-    transform: scale(0.5);
-    opacity: 0;
-  }
-  to {
-    transform: scale(1);
-    opacity: 1;
-  }
-}
-@keyframes veeRingBreathe {
-  0%,
-  100% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.045);
-  }
-}
-
-/* an orbiting mote around the brand gem */
-.vee-mote {
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: veeOrbit var(--orb, 8s) linear var(--d, 0s) infinite;
-}
-@keyframes veeOrbit {
-  from {
-    transform: rotate(0deg) translateX(var(--r, 40px)) rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg) translateX(var(--r, 40px)) rotate(-360deg);
-  }
-}
-
-@keyframes veeDisc {
-  0%,
-  100% {
-    opacity: 0.7;
-    transform: translate(-50%, -50%) scale(1);
-  }
-  50% {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1.08);
-  }
+  letter-spacing: 0.18em;
+  color: var(--accent);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .vee-tile:active {
+  .bento-card:active {
     transform: none;
-  }
-  .vee-draw {
-    stroke-dashoffset: 0;
-    animation: none;
-  }
-  .vee-node,
-  .vee-bar,
-  .vee-ring,
-  .vee-mote,
-  .tile-brand .vee-disc {
-    animation: none;
-    transform: none;
-    opacity: 1;
-  }
-  .vee-bar {
-    transform: scaleY(1);
   }
 }
 
@@ -1608,40 +1293,6 @@ select,
   to {
     opacity: 0;
     transform: translateY(8px);
-  }
-}
-
-/* ----- 2. home bento — greeting + staggered card entrance -----
-   The greeting rises first (200ms delay); the four tiles then stagger in at
-   80ms intervals via --vt-stagger set inline per card. */
-.vt-bento-greet {
-  animation: vtBentoRise 480ms var(--ease-premium) 200ms backwards;
-}
-/* `backwards` (not `both`): holds the hidden start-state through the stagger
-   delay, then reverts to the tile's own styles so its :active press-scale still
-   works once the entrance finishes. */
-.vt-bento-card {
-  animation: vtBentoCard 480ms var(--ease-premium) var(--vt-stagger, 0ms)
-    backwards;
-}
-@keyframes vtBentoRise {
-  from {
-    opacity: 0;
-    transform: translateY(16px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-@keyframes vtBentoCard {
-  from {
-    opacity: 0;
-    transform: translateY(24px) scale(0.96);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
   }
 }
 
@@ -1912,8 +1563,6 @@ select,
 @media (prefers-reduced-motion: reduce) {
   .vt-page-enter,
   .vt-page-exit,
-  .vt-bento-greet,
-  .vt-bento-card,
   .vt-draw,
   .vt-draw-dot,
   .vt-set-flash,
@@ -1940,8 +1589,6 @@ select,
     transform: none !important;
   }
   .vt-draw-dot,
-  .vt-bento-greet,
-  .vt-bento-card,
   .vt-check-pop {
     opacity: 1 !important;
     transform: none !important;

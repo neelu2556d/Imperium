@@ -1,137 +1,88 @@
 "use client";
 
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useState, type KeyboardEvent, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Activity, Droplets, Dumbbell, TrendingUp } from "lucide-react";
 import ImperiumGem from "@/components/welcome/ImperiumGem";
-import VitalityTile from "@/components/home/VitalityTile";
-import CountUp from "@/components/motion/CountUp";
-import WireArt from "@/components/home/tileart/WireArt";
-import RingArt from "@/components/home/tileart/RingArt";
-import BarsArt from "@/components/home/tileart/BarsArt";
-import MotesArt from "@/components/home/tileart/MotesArt";
 import { GearIcon } from "@/components/train/icons";
-import {
-  ActivityIcon,
-  BriefcaseIcon,
-  DumbbellIcon,
-  FlameIcon,
-} from "@/components/home/icons";
 import { useOwner } from "@/lib/useOwner";
 import { formatTime, formatToday, getGreeting } from "@/lib/home/datetime";
 import {
-  fetchFuelSparkline,
-  fetchFuelToday,
-  fetchSleepSeries,
   fetchTodayTrainingDay,
   fetchTrainSparkline,
-  fetchWaterToday,
   getDisplayName,
-  type FuelData,
-  type SleepData,
   type TodayTrainingDay,
 } from "@/lib/supabase/dashboard";
 
-interface DashboardData {
-  name: string | null;
-  today: TodayTrainingDay | null;
-  volumes: number[];
-  sleep: SleepData;
-  water: number | null;
-  fuel: FuelData;
-  fuelSeries: number[];
-}
-
-type LoadState =
-  | { status: "loading" }
-  | { status: "ready"; data: DashboardData };
-
 export default function HomeDashboard() {
-  const [state, setState] = useState<LoadState>({ status: "loading" });
   const isOwner = useOwner();
 
-  // Live wall clock. Seeded on first render (SSR uses the server's timezone; the
-  // client corrects on hydration — hence suppressHydrationWarning below) and
-  // ticked every second so the greeting rolls morning→afternoon→evening and the
-  // time stays current without a reload.
-  const [now, setNow] = useState(() => new Date());
-  useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(id);
-  }, []);
-
-  const greetingLead = getGreeting(now.getHours());
-  const dateStr = formatToday(now);
-  const timeStr = formatTime(now);
+  const [name, setName] = useState<string | null>(null);
+  const [today, setToday] = useState<TodayTrainingDay | null>(null);
+  const [volumes, setVolumes] = useState<number[]>([]);
 
   useEffect(() => {
     let cancelled = false;
-
     Promise.all([
       getDisplayName(),
       fetchTodayTrainingDay(),
       fetchTrainSparkline(),
-      fetchSleepSeries(),
-      fetchWaterToday(),
-      fetchFuelToday(),
-      fetchFuelSparkline(),
-    ]).then(([name, today, volumes, sleep, water, fuel, fuelSeries]) => {
+    ]).then(([name, today, volumes]) => {
       if (cancelled) return;
-      setState({
-        status: "ready",
-        data: { name, today, volumes, sleep, water, fuel, fuelSeries },
-      });
+      setName(name);
+      setToday(today);
+      setVolumes(volumes);
     });
-
     return () => {
       cancelled = true;
     };
   }, []);
 
-  const data = state.status === "ready" ? state.data : null;
+  // Wall clock for the greeting. Seeded on first render (SSR uses the server's
+  // timezone; the client corrects on hydration — hence suppressHydrationWarning
+  // below) and ticked every 60s.
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(id);
+  }, []);
 
-  // ----- greeting -----
-  const name = data?.name ?? null;
-
-  // ----- per-tile data -----
-  const today = data?.today ?? null;
-  const volumes = data?.volumes ?? [];
-  const sleep = data?.sleep ?? { series: [], latest: null, belowGoal: false };
-  const sleepLatest = sleep.latest;
-  const sleepProgress = sleepLatest != null ? sleepLatest / 8 : 0;
-  const fuel = data?.fuel;
-
-  // Bento entrance: the greeting rises first (200ms delay, handled in CSS),
-  // then the four tiles stagger in 80ms apart. Card 01 begins just after the
-  // greeting starts moving; the rest follow. Delay is passed as a CSS var the
-  // .vt-bento-card keyframe reads.
-  const cardStagger = (i: number): CSSProperties => ({
-    ["--vt-stagger" as string]: `${280 + i * 80}ms`,
-  });
+  const splitName = today
+    ? today.isRest
+      ? "REST"
+      : today.name.toUpperCase()
+    : null;
 
   return (
     <div className="w-full px-5 pb-10 pt-8 md:px-8 lg:px-12 lg:pt-10">
       {/* ---------- greeting ---------- */}
-      <header className="vt-bento-greet mb-6 flex items-center gap-4 md:mb-8 md:gap-6">
-        <ImperiumGem
-          size={84}
-          showChevron={false}
-          style={{ flexShrink: 0 }}
-        />
+      <header
+        className="flex items-center"
+        style={{ gap: 16, marginBottom: 24 }}
+      >
+        <ImperiumGem size={64} showChevron={false} style={{ flexShrink: 0 }} />
         <div className="min-w-0">
           <h1
-            className="serif-italic text-3xl leading-tight md:text-5xl"
+            className="serif-italic"
             data-no-vitality
             suppressHydrationWarning
+            style={{ fontSize: 32, lineHeight: 1.15, color: "#fff" }}
           >
-            {greetingLead},{" "}
-            <span style={{ color: "var(--color-mint)" }}>{name ?? "friend"}</span>
+            {getGreeting(now.getHours())},{" "}
+            <span style={{ color: "var(--accent)" }}>{name ?? "friend"}</span>
           </h1>
           <p
-            className="mono mt-1.5 text-[0.7rem] uppercase tracking-[0.18em] text-muted md:text-xs"
             suppressHydrationWarning
+            style={{
+              marginTop: 6,
+              fontFamily: "var(--font-mono)",
+              fontSize: 11,
+              letterSpacing: "0.1em",
+              color: "rgba(255,255,255,0.4)",
+            }}
           >
-            {dateStr} · {timeStr}
+            {formatToday(now)} · {formatTime(now)}
           </p>
         </div>
 
@@ -145,144 +96,366 @@ export default function HomeDashboard() {
         </Link>
       </header>
 
-      {/* ---------- Vitality bento grid ---------- */}
-      <div className={`vee-grid${isOwner ? " has-business" : ""}`}>
-        {/* 01 — TRAIN */}
-        <VitalityTile
-          className="vt-bento-card"
-          style={cardStagger(0)}
-          area="area-train"
-          variant="tile-train"
-          index="01"
-          glyph={<DumbbellIcon size={18} />}
-          label="Train"
-          stat={
-            today ? (today.isRest ? "REST" : today.name.toUpperCase()) : "SET UP"
-          }
-          art={<WireArt values={volumes} />}
+      {/* ---------- bento grid ---------- */}
+      <div className={`bento-grid${isOwner ? " has-business" : ""}`}>
+        <Card
+          area="bento-train"
           href="/train"
+          index="01"
+          label="Train"
           ariaLabel="Open Train"
-          summary={
-            today
-              ? today.isRest
-                ? "Rest day — recovery is training too."
-                : `Today: ${today.name}. Last 7 sessions' volume.`
-              : "No split yet — tap to set one up."
-          }
-        />
+          icon={<Dumbbell size={16} />}
+          sub={splitName}
+        >
+          <TrainChart volumes={volumes} />
+        </Card>
 
-        {/* 02 — VITALS */}
-        <VitalityTile
-          className="vt-bento-card"
-          style={cardStagger(1)}
-          area="area-vitals"
-          variant="tile-vitals"
-          index="02"
-          glyph={<ActivityIcon size={18} />}
-          label="Vitals"
-          stat={sleepLatest != null ? sleepLatest.toFixed(1) : "—"}
-          unit={sleepLatest != null ? "h sleep" : undefined}
-          warn={sleep.belowGoal}
-          art={<RingArt progress={sleepProgress} warn={sleep.belowGoal} />}
+        <Card
+          area="bento-vitals"
           href="/vitals"
+          index="02"
+          label="Vitals"
           ariaLabel="Open Vitals"
-          summary={
-            sleepLatest != null
-              ? `${sleepLatest.toFixed(1)}h sleep last night.`
-              : "No vitals logged yet."
-          }
-        />
+          icon={<Activity size={16} />}
+        >
+          <VitalsChart />
+        </Card>
 
-        {/* 03 — FUEL */}
-        <VitalityTile
-          className="vt-bento-card"
-          style={cardStagger(2)}
-          area="area-fuel"
-          variant="tile-fuel"
-          index="03"
-          glyph={<FlameIcon size={18} />}
-          label="Fuel"
-          stat={
-            fuel?.hasData ? (
-              <CountUp value={Math.round(fuel.calories)} restartKey={fuel} />
-            ) : (
-              "0"
-            )
-          }
-          unit="kcal"
-          art={<BarsArt values={data?.fuelSeries ?? []} />}
+        <ImperiumCard />
+
+        <Card
+          area="bento-fuel"
           href="/fuel"
+          index="04"
+          label="Fuel"
           ariaLabel="Open Fuel"
-          summary={
-            fuel?.hasData
-              ? `${Math.round(fuel.calories)} kcal logged today.`
-              : "Nothing logged today — tap to add a meal."
-          }
-        />
+          icon={<Droplets size={16} />}
+        >
+          <FuelChart />
+        </Card>
 
-        {/* 04 — IMPERIUM (brand centrepiece) */}
-        <BrandTile className="vt-bento-card" style={cardStagger(3)} />
-
-        {/* 05 — BUSINESS (owner-only; the wholesale command centre) */}
         {isOwner && (
-          <VitalityTile
-            className="vt-bento-card"
-            style={cardStagger(4)}
-            area="area-business"
-            variant="tile-fuel"
-            index="05"
-            glyph={<BriefcaseIcon size={18} />}
-            label="Business"
-            art={<BarsArt values={[]} />}
+          <Card
+            area="bento-business"
             href="/business"
+            index="05"
+            label="Business"
             ariaLabel="Open Business"
-            summary="Your wholesale command centre — sales, stock, and collections."
-          />
+            icon={<TrendingUp size={16} color="#F59E0B" />}
+          >
+            <BusinessChart />
+          </Card>
         )}
       </div>
     </div>
   );
 }
 
-/**
- * The Imperium brand tile — a centred breathing gem ringed by orbiting motes,
- * opening the AI mentor. Special-cased because its layout centres the gem
- * rather than using the index/stat/label chrome of the data tiles.
- */
-function BrandTile({
-  className = "",
-  style,
-}: {
-  className?: string;
-  style?: CSSProperties;
-}) {
+/* ========================================================================
+   Card shell — shared chrome (index · icon · sub-label · label · arrow)
+   around an absolute chart layer. The whole card navigates on tap.
+   ======================================================================== */
+
+interface CardProps {
+  /** Grid-placement class, e.g. "bento-train". */
+  area: string;
+  href: string;
+  index: string;
+  label: string;
+  ariaLabel: string;
+  icon?: ReactNode;
+  /** Accent kicker above the label (Train's split day). */
+  sub?: string | null;
+  children?: ReactNode;
+}
+
+function Card({
+  area,
+  href,
+  index,
+  label,
+  ariaLabel,
+  icon,
+  sub,
+  children,
+}: CardProps) {
   const router = useRouter();
+  const open = () => router.push(href);
+  const onKeyDown = (e: KeyboardEvent) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      open();
+    }
+  };
+
   return (
     <div
       role="button"
       tabIndex={0}
-      aria-label="Open Imperium AI mentor"
-      className={`vee-tile tile-brand area-brand ${className}`}
-      style={style}
-      onClick={() => router.push("/mentor")}
+      aria-label={ariaLabel}
+      className={`bento-card ${area}`}
+      onClick={open}
+      onKeyDown={onKeyDown}
+    >
+      {children}
+      <span className="bento-index">{index}</span>
+      {icon && (
+        <span className="bento-icon" aria-hidden>
+          {icon}
+        </span>
+      )}
+      {sub && <span className="bento-sub">{sub}</span>}
+      <span className="bento-label">{label}</span>
+      <span className="bento-arrow" aria-hidden>
+        →
+      </span>
+    </div>
+  );
+}
+
+/* ========================================================================
+   03 — Imperium centrepiece: circuit traces framing the gem.
+   Shares the card shell but none of the data-card chrome (no icon/arrow;
+   its label is centred with the gem rather than bottom-left).
+   ======================================================================== */
+
+const TRACES = [
+  "M 0,22 L 32,22 L 32,0",
+  "M 100,30 L 72,30 L 72,8",
+  "M 0,74 L 26,74 L 26,100",
+  "M 100,70 L 70,70 L 70,92",
+  "M 55,0 L 55,14 L 90,14",
+];
+
+function ImperiumCard() {
+  const router = useRouter();
+  const open = () => router.push("/mentor");
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      aria-label="Open Imperium, your AI mentor"
+      className="bento-card bento-imperium"
+      onClick={open}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
-          router.push("/mentor");
+          open();
         }
       }}
     >
-      <div className="vee-aurora" />
-      <div className="vee-disc" />
-      <MotesArt />
-      <span className="vee-index">04</span>
-      <div className="vee-brand-inner">
-        <ImperiumGem size={64} showChevron={false} />
-        <p className="serif-italic mt-3 text-2xl text-fg" data-no-vitality>
+      <svg
+        className="bento-traces"
+        viewBox="0 0 100 100"
+        preserveAspectRatio="none"
+        aria-hidden
+      >
+        {TRACES.map((d) => (
+          <path
+            key={d}
+            d={d}
+            stroke="rgba(255,255,255,0.05)"
+            strokeWidth={1}
+            fill="none"
+            vectorEffect="non-scaling-stroke"
+          />
+        ))}
+      </svg>
+      <span className="bento-index">03</span>
+      <div className="bento-imperium-inner">
+        <div className="bento-gem-box">
+          <ImperiumGem size={56} showChevron={false} />
+        </div>
+        <p className="bento-imperium-name" data-no-vitality>
           Imperium
         </p>
-        <span className="vee-kicker">Your AI mentor</span>
+        <span className="bento-imperium-kicker">YOUR AI MENTOR</span>
       </div>
+    </div>
+  );
+}
+
+/* ========================================================================
+   Charts — decorative SVG layers. Paths stretch to fill the chart area
+   (preserveAspectRatio="none") with non-scaling strokes so line weights
+   stay at their specified px. Endpoint dots are HTML, not <circle>: the
+   non-uniform stretch would squash a circle into an ellipse on narrow
+   cards, while a percent-positioned dot stays round on the same point.
+   ======================================================================== */
+
+function ChartDot({
+  leftPct,
+  topPct,
+  color,
+  glow,
+}: {
+  leftPct: number;
+  topPct: number;
+  color: string;
+  glow: string;
+}) {
+  return (
+    <span
+      aria-hidden
+      style={{
+        position: "absolute",
+        left: `${leftPct}%`,
+        top: `${topPct}%`,
+        width: 10,
+        height: 10,
+        marginLeft: -5,
+        marginTop: -5,
+        borderRadius: "50%",
+        background: color,
+        filter: `drop-shadow(0 0 ${glow})`,
+      }}
+    />
+  );
+}
+
+/** Fallback y-values (already in viewBox coords) — a gently rising curve. */
+const TRAIN_PLACEHOLDER_YS = [75, 70, 65, 58, 52, 45, 30];
+
+/** Session volumes → y-coords in [10, 90]; higher volume sits higher up. */
+function trainYs(volumes: number[]): number[] {
+  if (volumes.length < 2) return TRAIN_PLACEHOLDER_YS;
+  const min = Math.min(...volumes);
+  const max = Math.max(...volumes);
+  if (max === min) return volumes.map(() => 50);
+  return volumes.map((v) => 90 - ((v - min) / (max - min)) * 80);
+}
+
+/** One smooth cubic-bezier path through the points (Catmull-Rom tangents). */
+function smoothPath(xs: number[], ys: number[]): string {
+  const pt = (i: number): [number, number] => {
+    const j = Math.max(0, Math.min(xs.length - 1, i));
+    return [xs[j], ys[j]];
+  };
+  let d = `M ${xs[0].toFixed(1)},${ys[0].toFixed(1)}`;
+  for (let i = 0; i < xs.length - 1; i++) {
+    const [x0, y0] = pt(i - 1);
+    const [x1, y1] = pt(i);
+    const [x2, y2] = pt(i + 1);
+    const [x3, y3] = pt(i + 2);
+    const c1x = x1 + (x2 - x0) / 6;
+    const c1y = y1 + (y2 - y0) / 6;
+    const c2x = x2 - (x3 - x1) / 6;
+    const c2y = y2 - (y3 - y1) / 6;
+    d += ` C ${c1x.toFixed(1)},${c1y.toFixed(1)} ${c2x.toFixed(1)},${c2y.toFixed(
+      1,
+    )} ${x2.toFixed(1)},${y2.toFixed(1)}`;
+  }
+  return d;
+}
+
+function TrainChart({ volumes }: { volumes: number[] }) {
+  const ys = trainYs(volumes);
+  const n = ys.length;
+  // 10-unit inset each side keeps the endpoint dot inside the clipped area.
+  const xs = ys.map((_, i) => 10 + (i * 480) / (n - 1));
+
+  return (
+    <div className="bento-chart">
+      <svg viewBox="0 0 500 100" preserveAspectRatio="none" aria-hidden>
+        <path
+          d={smoothPath(xs, ys)}
+          stroke="var(--accent)"
+          strokeWidth={1.5}
+          fill="none"
+          vectorEffect="non-scaling-stroke"
+        />
+      </svg>
+      <ChartDot
+        leftPct={(xs[n - 1] / 500) * 100}
+        topPct={ys[n - 1]}
+        color="#fff"
+        glow="4px white"
+      />
+    </div>
+  );
+}
+
+function VitalsChart() {
+  return (
+    <div className="bento-chart">
+      <svg viewBox="0 0 300 70" preserveAspectRatio="none" aria-hidden>
+        <path
+          d="M 0,35 L 55,35 L 68,35 L 78,8 L 88,60 L 98,30 L 110,35 L 300,35"
+          stroke="var(--accent)"
+          strokeWidth={1.5}
+          fill="none"
+          vectorEffect="non-scaling-stroke"
+        />
+      </svg>
+      {/* x=240, y=35 of the 300×70 viewBox */}
+      <ChartDot
+        leftPct={80}
+        topPct={50}
+        color="var(--accent)"
+        glow="5px var(--accent)"
+      />
+    </div>
+  );
+}
+
+function FuelChart() {
+  return (
+    <div className="bento-chart">
+      <svg viewBox="0 0 200 120" preserveAspectRatio="none" aria-hidden>
+        <path
+          d="M 0,45 C 25,20 50,70 75,45 C 100,20 125,70 150,45 C 175,20 200,70 225,45"
+          stroke="var(--accent)"
+          strokeWidth={1.5}
+          fill="none"
+          opacity={0.9}
+          vectorEffect="non-scaling-stroke"
+        />
+        <path
+          d="M 0,75 C 25,55 50,95 75,75 C 100,55 125,95 150,75 C 175,55 200,95 225,75"
+          stroke="rgba(255,255,255,0.18)"
+          strokeWidth={1}
+          fill="none"
+          vectorEffect="non-scaling-stroke"
+        />
+      </svg>
+      {/* on wave 1 near the right end — the x=150, y=45 node of the curve */}
+      <ChartDot
+        leftPct={75}
+        topPct={37.5}
+        color="var(--accent)"
+        glow="5px var(--accent)"
+      />
+    </div>
+  );
+}
+
+const CANDLES = [
+  { x: 40, wickTop: 20, wickBottom: 55, bodyY: 45, bodyH: 24 },
+  { x: 90, wickTop: 10, wickBottom: 50, bodyY: 18, bodyH: 28 },
+  { x: 150, wickTop: 25, wickBottom: 60, bodyY: 32, bodyH: 22 },
+  { x: 200, wickTop: 5, wickBottom: 45, bodyY: 10, bodyH: 30 },
+];
+
+function BusinessChart() {
+  return (
+    <div className="bento-chart">
+      <svg viewBox="0 0 240 80" preserveAspectRatio="none" aria-hidden>
+        {CANDLES.map(({ x, wickTop, wickBottom, bodyY, bodyH }) => (
+          <g key={x}>
+            <line
+              x1={x}
+              y1={wickTop}
+              x2={x}
+              y2={wickBottom}
+              stroke="#F59E0B"
+              strokeWidth={1.5}
+              vectorEffect="non-scaling-stroke"
+            />
+            <rect x={x - 7} y={bodyY} width={14} height={bodyH} rx={4} fill="#F59E0B" />
+          </g>
+        ))}
+      </svg>
     </div>
   );
 }

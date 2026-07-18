@@ -14,6 +14,7 @@ import {
   advanceOnboardingStep,
   completeOnboarding as completeOnboardingRequest,
   getOnboardingState,
+  markStepComplete,
   resetOnboarding as resetOnboardingRequest,
 } from "@/lib/supabase/onboarding";
 import { getNextStep, type OnboardingStepId } from "@/lib/onboarding/steps";
@@ -30,6 +31,12 @@ type OnboardingLoadState =
 
 export type OnboardingContextValue = OnboardingLoadState & {
   completeStep: (step: OnboardingStepId) => Promise<void>;
+  /**
+   * Records a hub sub-screen (e.g. 'macros', 'mentor') in completed_steps
+   * without advancing current_step, keeping the in-memory state in sync so
+   * the setup hub reflects it immediately on return.
+   */
+  completeSubStep: (step: string) => Promise<void>;
   resetOnboarding: () => Promise<void>;
 };
 
@@ -54,7 +61,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       const isLastStep = getNextStep(step) === null;
       const onboarding = isLastStep
         ? await completeOnboardingRequest()
-        : await advanceOnboardingStep(step, current.completedSteps);
+        : await advanceOnboardingStep(step);
 
       if (onboarding.isComplete) {
         setOnboardingCompleteCookie();
@@ -68,6 +75,18 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     },
     [router]
   );
+
+  const completeSubStep = useCallback(async (step: string) => {
+    await markStepComplete(step);
+    const current = loadStateRef.current;
+    if (current.status !== "ready" || current.completedSteps.includes(step)) {
+      return;
+    }
+    setLoadState({
+      ...current,
+      completedSteps: [...current.completedSteps, step],
+    });
+  }, []);
 
   const resetOnboarding = useCallback(async () => {
     const onboarding = await resetOnboardingRequest();
@@ -102,7 +121,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
 
   return (
     <OnboardingContext.Provider
-      value={{ ...loadState, completeStep, resetOnboarding }}
+      value={{ ...loadState, completeStep, completeSubStep, resetOnboarding }}
     >
       {children}
     </OnboardingContext.Provider>

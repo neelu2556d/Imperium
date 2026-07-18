@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useOnboarding } from "@/lib/onboarding/OnboardingProvider";
-import { markStepComplete } from "@/lib/supabase/onboarding";
 import { fetchBodyStats } from "@/lib/supabase/profile";
 import {
   DEFAULT_NUTRITION_GOALS,
@@ -100,7 +99,7 @@ export default function MacrosScreen() {
         fat_g: toNumber(values.fat),
         carbs_g: toNumber(values.carbs),
       });
-      await markStepComplete("macros");
+      await onboarding.completeSubStep("macros");
       router.push("/onboarding/setup");
     } catch (err) {
       setSaving(false);
@@ -135,14 +134,14 @@ export default function MacrosScreen() {
         className="mt-6 text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-muted"
         data-no-vitality
       >
-        Set your macros · Step 3 of 4
+        Set your macros · Step 2 of 4
       </p>
 
       <div
         className="mt-3 h-1 w-full overflow-hidden rounded-full"
         style={{ background: "var(--color-border)" }}
         role="progressbar"
-        aria-valuenow={75}
+        aria-valuenow={50}
         aria-valuemin={0}
         aria-valuemax={100}
         aria-label="Onboarding progress"
@@ -150,7 +149,7 @@ export default function MacrosScreen() {
         <div
           data-no-vitality
           className="h-full rounded-full"
-          style={{ width: "75%", background: "var(--color-mint)" }}
+          style={{ width: "50%", background: "var(--color-mint)" }}
         />
       </div>
 

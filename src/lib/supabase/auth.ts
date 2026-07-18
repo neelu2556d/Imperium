@@ -1,5 +1,4 @@
 import { supabase } from "@/lib/supabase/client";
-import { ONBOARDING_STEPS } from "@/lib/onboarding/steps";
 import {
   setOnboardingCompleteCookie,
   clearOnboardingCompleteCookie,
@@ -141,9 +140,9 @@ export async function signInWithEmailOnly(email: string): Promise<void> {
 
 /**
  * Decides where to send a user right after signing in. Returns `/home` when
- * their onboarding row has every step in `completed_steps`, otherwise
- * `/welcome` to (re)start onboarding. Any read failure falls back to
- * `/welcome` — the safer default for an incomplete profile.
+ * their onboarding row is marked complete, otherwise `/welcome` to (re)start
+ * onboarding. Any read failure falls back to `/welcome` — the safer default
+ * for an incomplete profile.
  */
 export async function postSignInDestination(): Promise<string> {
   const {
@@ -154,14 +153,15 @@ export async function postSignInDestination(): Promise<string> {
 
   const { data, error } = await supabase
     .from("user_onboarding")
-    .select("completed_steps")
+    .select("is_complete")
     .eq("user_id", user.id)
     .maybeSingle();
 
   if (error || !data) return "/welcome";
 
-  const completed = new Set((data.completed_steps ?? []) as string[]);
-  const allDone = ONBOARDING_STEPS.every((step) => completed.has(step));
+  // `is_complete` is the authoritative flag (set by completeOnboarding), so
+  // use it directly rather than re-deriving doneness from completed_steps.
+  const allDone = Boolean(data.is_complete);
 
   // Keep the proxy's fast-path cookie in sync with the DB truth so the guard
   // doesn't bounce a fully-onboarded user (e.g. signing in on a new device)

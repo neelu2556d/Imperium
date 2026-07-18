@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useOnboarding } from "@/lib/onboarding/OnboardingProvider";
-import { markStepComplete } from "@/lib/supabase/onboarding";
 import { fetchMentorSetup, saveMentorSetup } from "@/lib/supabase/profile";
 import ChoiceCard from "@/components/onboarding/training/primitives/ChoiceCard";
 import Chip from "@/components/onboarding/training/primitives/Chip";
@@ -74,14 +73,13 @@ export default function MentorScreen() {
     setSaving(true);
     setError(null);
 
-    const trainingDone =
-      onboarding.status === "ready" &&
-      onboarding.completedSteps.includes("training");
-
     try {
       await saveMentorSetup(tone, focus);
-      await markStepComplete("mentor");
-      router.push(trainingDone ? "/home" : "/onboarding/split");
+      await onboarding.completeSubStep("mentor");
+      // Back to the setup hub — it shows this task checked off and unlocks
+      // Continue once every sub-task is done. (Routing anywhere further ahead
+      // would just get bounced by the step guard.)
+      router.push("/onboarding/setup");
     } catch (err) {
       setSaving(false);
       setError(err instanceof Error ? err.message : "Couldn't save. Please try again.");
@@ -115,14 +113,14 @@ export default function MentorScreen() {
         className="mt-6 text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-muted"
         data-no-vitality
       >
-        Tune your mentor · Step 4 of 4
+        Tune your mentor · Step 2 of 4
       </p>
 
       <div
         className="mt-3 h-1 w-full overflow-hidden rounded-full"
         style={{ background: "var(--color-border)" }}
         role="progressbar"
-        aria-valuenow={100}
+        aria-valuenow={50}
         aria-valuemin={0}
         aria-valuemax={100}
         aria-label="Onboarding progress"
@@ -130,7 +128,7 @@ export default function MentorScreen() {
         <div
           data-no-vitality
           className="h-full rounded-full"
-          style={{ width: "100%", background: "var(--color-mint)" }}
+          style={{ width: "50%", background: "var(--color-mint)" }}
         />
       </div>
 

@@ -4,12 +4,14 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getOnboardingState } from "@/lib/supabase/onboarding";
 import { getFirstName } from "@/lib/supabase/profile";
+import { setOnboardingCompleteCookie } from "@/lib/onboarding/cookie";
+import type { OnboardingStepId } from "@/lib/onboarding/steps";
 import ImperiumGem from "@/components/welcome/ImperiumGem";
 
 type LoadState =
   | { status: "loading" }
   | { status: "error"; error: string }
-  | { status: "ready"; firstName: string | null };
+  | { status: "ready"; firstName: string | null; currentStep: OnboardingStepId };
 
 export default function WelcomeScreen() {
   const router = useRouter();
@@ -23,10 +25,17 @@ export default function WelcomeScreen() {
       .then(([onboarding, firstName]) => {
         if (cancelled) return;
         if (onboarding.isComplete) {
+          // Sync the proxy's fast-path cookie first, or it would bounce
+          // /home straight back here in a redirect loop.
+          setOnboardingCompleteCookie();
           router.replace("/home");
           return;
         }
-        setLoadState({ status: "ready", firstName });
+        setLoadState({
+          status: "ready",
+          firstName,
+          currentStep: onboarding.currentStep,
+        });
       })
       .catch((error: unknown) => {
         if (cancelled) return;
@@ -54,7 +63,8 @@ export default function WelcomeScreen() {
   const handleTakeMeIn = () => {
     if (isNavigating) return;
     setIsNavigating(true);
-    router.push("/onboarding/setup");
+    // Resume from the user's saved step, not a hard-coded one.
+    router.push(`/onboarding/${loadState.currentStep}`);
   };
 
   const greeting = loadState.firstName ? `Hi, ${loadState.firstName}.` : "Hi, there.";

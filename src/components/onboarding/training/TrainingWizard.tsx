@@ -89,16 +89,24 @@ export default function TrainingWizard({
     };
   }, [initialStep, syncUrl]);
 
-  // Top-level guard: only render while 'training' is genuinely the live step.
-  // Redo mode is exempt — a completed user is retaking the quiz on purpose.
+  // Top-level guard: render while 'training' is the live step or already
+  // completed (so the split screen's back button works). Only a user who
+  // hasn't reached the quiz yet is bounced to their real step. Redo mode is
+  // exempt — a completed user is retaking the quiz on purpose.
+  const trainingReachable =
+    onboarding.status === "ready" &&
+    !onboarding.isComplete &&
+    (onboarding.currentStep === "training" ||
+      onboarding.completedSteps.includes("training"));
+
   useEffect(() => {
     if (redo || onboarding.status !== "ready") return;
     if (onboarding.isComplete) {
       router.replace("/train");
-    } else if (onboarding.currentStep !== "training") {
+    } else if (!trainingReachable) {
       router.replace(`/onboarding/${onboarding.currentStep}`);
     }
-  }, [onboarding, router, redo]);
+  }, [onboarding, router, redo, trainingReachable]);
 
   useEffect(() => () => {
     if (timer.current) clearTimeout(timer.current);
@@ -163,10 +171,7 @@ export default function TrainingWizard({
     go(index + 1, "fwd");
   };
 
-  const redirecting =
-    !redo &&
-    onboarding.status === "ready" &&
-    (onboarding.isComplete || onboarding.currentStep !== "training");
+  const redirecting = !redo && onboarding.status === "ready" && !trainingReachable;
 
   if (!loaded || onboarding.status !== "ready" || redirecting) {
     return null;

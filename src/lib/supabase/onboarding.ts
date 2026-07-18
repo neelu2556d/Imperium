@@ -2,6 +2,8 @@ import { ensureAnonymousSession, supabase } from "@/lib/supabase/client";
 import {
   getFirstStep,
   getNextStep,
+  getStepIndex,
+  isOnboardingStepId,
   type OnboardingStepId,
 } from "@/lib/onboarding/steps";
 import type { OnboardingState } from "@/lib/onboarding/types";
@@ -14,8 +16,13 @@ interface OnboardingRow {
 
 function rowToState(row: OnboardingRow): OnboardingState {
   return {
-    currentStep: row.current_step as OnboardingStepId,
-    completedSteps: row.completed_steps as OnboardingStepId[],
+    // Guard against values the registry no longer knows (e.g. the legacy
+    // 'welcome' default from the original migration) — otherwise the step
+    // guard would redirect to a 404.
+    currentStep: isOnboardingStepId(row.current_step)
+      ? row.current_step
+      : getFirstStep(),
+    completedSteps: (row.completed_steps ?? []) as string[],
     isComplete: row.is_complete,
   };
 }
@@ -53,17 +60,35 @@ export async function getOnboardingState(): Promise<OnboardingState> {
 
 /**
  * Marks `step` as completed and advances `current_step` to the next step in
- * the registry (or leaves it unchanged if `step` is already the last one).
+ * the registry. Reads the row fresh first so completed_steps entries written
+ * outside the provider (hub sub-screens via `markStepComplete`, e.g. 'macros'
+ * / 'mentor') are preserved rather than clobbered by a stale client snapshot.
+ * Never moves `current_step` backwards — re-completing an earlier step while
+ * revisiting it leaves the user's real position intact.
  */
 export async function advanceOnboardingStep(
-  step: OnboardingStepId,
-  completedSteps: OnboardingStepId[]
+  step: OnboardingStepId
 ): Promise<OnboardingState> {
   const userId = await ensureAnonymousSession();
-  const nextStep = getNextStep(step) ?? step;
-  const nextCompleted = completedSteps.includes(step)
-    ? completedSteps
-    : [...completedSteps, step];
+
+  const { data: row, error: readError } = await supabase
+    .from("user_onboarding")
+    .select("current_step, completed_steps, is_complete")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (readError) throw readError;
+
+  const existing = (row?.completed_steps ?? []) as string[];
+  const nextCompleted = existing.includes(step) ? existing : [...existing, step];
+
+  const proposed = getNextStep(step) ?? step;
+  const current =
+    row && isOnboardingStepId(row.current_step)
+      ? row.current_step
+      : getFirstStep();
+  const nextStep =
+    getStepIndex(proposed) > getStepIndex(current) ? proposed : current;
 
   const { data, error } = await supabase
     .from("user_onboarding")

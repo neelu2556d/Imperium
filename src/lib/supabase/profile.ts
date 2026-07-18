@@ -6,22 +6,28 @@ import {
 } from "@/lib/onboarding/training/answers";
 
 /**
- * Loads the current user's first name. Returns null for brand-new users who
- * haven't set a profile row yet, so callers can fall back to a generic
- * greeting.
+ * Loads the current user's first name for greetings. The "About you" step
+ * saves to `name` (free-form), while `first_name` predates it — prefer the
+ * explicit first_name, else the first word of `name`. Returns null for
+ * brand-new users with no profile row yet, so callers can fall back to a
+ * generic greeting.
  */
 export async function getFirstName(): Promise<string | null> {
   const userId = await ensureAnonymousSession();
 
   const { data, error } = await supabase
     .from("profiles")
-    .select("first_name")
+    .select("first_name, name")
     .eq("user_id", userId)
     .maybeSingle();
 
   if (error) throw error;
 
-  return data?.first_name ?? null;
+  const first = (data?.first_name as string | null)?.trim();
+  if (first) return first;
+
+  const name = (data?.name as string | null)?.trim();
+  return name ? name.split(/\s+/)[0] : null;
 }
 
 export interface ProfileBasics {

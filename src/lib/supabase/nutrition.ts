@@ -15,24 +15,46 @@ export const DEFAULT_NUTRITION_GOALS: NutritionGoals = {
   carbs_g: 275,
 };
 
+/**
+ * True when a Supabase/Postgres error means the `_g`-suffixed macro columns
+ * don't exist (the original schema created bare protein/fat/carbs; migration
+ * 0019 renames them). Lets reads/writes fall back to the legacy column names.
+ */
+function isMissingGColumns(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const e = error as { code?: string; message?: string };
+  return (
+    e.code === "42703" ||
+    e.code === "PGRST204" ||
+    (typeof e.message === "string" && /_g\b/.test(e.message) &&
+      /column|does not exist|schema cache/i.test(e.message))
+  );
+}
+
 /** Loads the user's saved nutrition goals, or null if they haven't set any. */
 export async function fetchNutritionGoals(): Promise<NutritionGoals | null> {
   const userId = await ensureAnonymousSession();
 
-  const { data, error } = await supabase
-    .from("nutrition_goals")
-    .select("calories, protein_g, fat_g, carbs_g")
-    .eq("user_id", userId)
-    .maybeSingle();
+  const run = (columns: string) =>
+    supabase
+      .from("nutrition_goals")
+      .select(columns)
+      .eq("user_id", userId)
+      .maybeSingle();
 
+  let { data, error } = await run("calories, protein_g, fat_g, carbs_g");
+  if (error && isMissingGColumns(error)) {
+    ({ data, error } = await run("calories, protein, fat, carbs"));
+  }
   if (error) throw error;
   if (!data) return null;
 
+  const r = data as unknown as Record<string, unknown>;
   return {
-    calories: Number(data.calories),
-    protein_g: Number(data.protein_g),
-    fat_g: Number(data.fat_g),
-    carbs_g: Number(data.carbs_g),
+    calories: Number(r.calories),
+    protein_g: Number(r.protein_g ?? r.protein),
+    fat_g: Number(r.fat_g ?? r.fat),
+    carbs_g: Number(r.carbs_g ?? r.carbs),
   };
 }
 
@@ -40,15 +62,25 @@ export async function fetchNutritionGoals(): Promise<NutritionGoals | null> {
 export async function saveNutritionGoals(goals: NutritionGoals): Promise<void> {
   const userId = await ensureAnonymousSession();
 
-  const { error } = await supabase.from("nutrition_goals").upsert(
-    {
-      user_id: userId,
-      ...goals,
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: "user_id" }
-  );
+  const run = (row: Record<string, unknown>) =>
+    supabase
+      .from("nutrition_goals")
+      .upsert(
+        { user_id: userId, updated_at: new Date().toISOString(), ...row },
+        { onConflict: "user_id" }
+      );
 
+  const { error } = await run({ ...goals });
+  if (error && isMissingGColumns(error)) {
+    const { error: retryError } = await run({
+      calories: goals.calories,
+      protein: goals.protein_g,
+      fat: goals.fat_g,
+      carbs: goals.carbs_g,
+    });
+    if (retryError) throw retryError;
+    return;
+  }
   if (error) throw error;
 }
 

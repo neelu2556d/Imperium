@@ -699,7 +699,7 @@ function TrainingSection() {
     <Section title="Training">
       <div className="flex flex-col gap-3">
         <NavRow href="/onboarding/customize-days">Adjust your training</NavRow>
-        <NavRow href="/onboarding/training/1">Redo onboarding quiz</NavRow>
+        <NavRow href="/onboarding/training/1?redo=1">Redo onboarding quiz</NavRow>
       </div>
     </Section>
   );

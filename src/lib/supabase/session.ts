@@ -280,6 +280,103 @@ export async function logSet(input: {
 }
 
 /**
+ * Adds an exercise to a session by hand (the "+ Add exercise" sheet). Resolves
+ * the pick to an `exercises` row — reusing a library row when one matches the
+ * name, otherwise inserting a user-owned custom exercise — and, for the
+ * "always" scope, appends it to the day's picks in day_exercises. The "today"
+ * scope stays session-local (sets still log against the real exercise id, so
+ * history and progress graphs work either way). Returns the ready-to-render
+ * SessionExercise. Throws on failure so the screen can surface a retry.
+ */
+export async function addSessionExercise(
+  dayId: string,
+  pick: {
+    id: string | null;
+    name: string;
+    muscleGroup: MuscleGroup | null;
+    formCue: string | null;
+  },
+  scope: "today" | "always",
+  prescribedSets = 4,
+  prescribedReps = 8
+): Promise<SessionExercise> {
+  const userId = await ensureAnonymousSession();
+  const name = pick.name.trim();
+
+  // Resolve to an exercises row: given id → name match → new custom row.
+  let exerciseId = pick.id;
+  if (!exerciseId) {
+    const { data: existing, error: lookupError } = await supabase
+      .from("exercises")
+      .select("id")
+      .ilike("name", name)
+      .limit(1);
+    if (lookupError) throw lookupError;
+    exerciseId = (existing?.[0]?.id as string | undefined) ?? null;
+  }
+  if (!exerciseId) {
+    const { data: inserted, error: insertError } = await supabase
+      .from("exercises")
+      .insert({
+        user_id: userId,
+        name,
+        muscle_group: pick.muscleGroup,
+        notes: pick.formCue,
+        is_custom: true,
+      })
+      .select("id")
+      .single();
+    if (insertError) throw insertError;
+    exerciseId = inserted.id as string;
+  }
+
+  // "Always" → persist to the day's picks, appended after the existing order.
+  let rowId = `today-${exerciseId}`;
+  if (scope === "always") {
+    const { data: lastOrder, error: orderError } = await supabase
+      .from("day_exercises")
+      .select("exercise_order")
+      .eq("training_split_id", dayId)
+      .eq("user_id", userId)
+      .order("exercise_order", { ascending: false })
+      .limit(1);
+    if (orderError) throw orderError;
+
+    const nextOrder = ((lastOrder?.[0]?.exercise_order as number | undefined) ?? -1) + 1;
+    const { data: row, error: rowError } = await supabase
+      .from("day_exercises")
+      .insert({
+        user_id: userId,
+        training_split_id: dayId,
+        exercise_id: exerciseId,
+        exercise_order: nextOrder,
+        prescribed_sets: prescribedSets,
+        prescribed_reps: prescribedReps,
+        is_pick: true,
+      })
+      .select("id")
+      .single();
+    if (rowError) throw rowError;
+    rowId = row.id as string;
+  }
+
+  return {
+    rowId,
+    exerciseId,
+    name,
+    muscleGroup: pick.muscleGroup,
+    tier: null,
+    isCompound: false,
+    formCue: pick.formCue,
+    prescribedSets,
+    prescribedReps,
+    last: { weight: null, allRepsHit: false },
+    lastWeight: null,
+    loggedToday: [],
+  };
+}
+
+/**
  * Swaps the exercise on a day_exercises row for another (the "always" branch of
  * the swap sheet — "today only" is handled in the screen's local state). Carries
  * the existing prescription over to the replacement.

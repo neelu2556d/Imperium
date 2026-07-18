@@ -17,6 +17,7 @@ import {
   type TrainingAnswers,
 } from "@/lib/onboarding/training/answers";
 import { WIZARD_STEPS } from "@/lib/onboarding/training/config";
+import { pushToast } from "@/lib/toast";
 import type { Patch } from "@/components/onboarding/training/types";
 
 type Direction = "fwd" | "back";
@@ -25,7 +26,19 @@ function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
 }
 
-export default function TrainingWizard({ initialStep }: { initialStep: number }) {
+export default function TrainingWizard({
+  initialStep,
+  redo = false,
+}: {
+  initialStep: number;
+  /**
+   * Redo mode — "Redo onboarding quiz" from Settings. The user has already
+   * finished onboarding, so the completeness guard below must not bounce them
+   * to /train; finishing saves the answers and returns to Settings instead of
+   * advancing the onboarding flow.
+   */
+  redo?: boolean;
+}) {
   const router = useRouter();
   const onboarding = useOnboarding();
 
@@ -36,11 +49,19 @@ export default function TrainingWizard({ initialStep }: { initialStep: number })
   const [saving, setSaving] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const syncUrl = useCallback((step: number) => {
-    if (typeof window !== "undefined") {
-      window.history.replaceState(null, "", `/onboarding/training/${step}`);
-    }
-  }, []);
+  const syncUrl = useCallback(
+    (step: number) => {
+      if (typeof window !== "undefined") {
+        // Keep ?redo=1 in the URL so a mid-quiz refresh stays in redo mode.
+        window.history.replaceState(
+          null,
+          "",
+          `/onboarding/training/${step}${redo ? "?redo=1" : ""}`
+        );
+      }
+    },
+    [redo]
+  );
 
   // Hydrate answers from Supabase (source of truth) overlaid with any local,
   // possibly-unsynced edits, then clamp to the furthest reachable step.
@@ -69,14 +90,15 @@ export default function TrainingWizard({ initialStep }: { initialStep: number })
   }, [initialStep, syncUrl]);
 
   // Top-level guard: only render while 'training' is genuinely the live step.
+  // Redo mode is exempt — a completed user is retaking the quiz on purpose.
   useEffect(() => {
-    if (onboarding.status !== "ready") return;
+    if (redo || onboarding.status !== "ready") return;
     if (onboarding.isComplete) {
       router.replace("/train");
     } else if (onboarding.currentStep !== "training") {
       router.replace(`/onboarding/${onboarding.currentStep}`);
     }
-  }, [onboarding, router]);
+  }, [onboarding, router, redo]);
 
   useEffect(() => () => {
     if (timer.current) clearTimeout(timer.current);
@@ -110,7 +132,7 @@ export default function TrainingWizard({ initialStep }: { initialStep: number })
   const handleBack = () => {
     if (transition) return;
     if (index === 0) {
-      router.push("/onboarding/setup");
+      router.push(redo ? "/settings" : "/onboarding/setup");
       return;
     }
     go(index - 1, "back");
@@ -124,7 +146,13 @@ export default function TrainingWizard({ initialStep }: { initialStep: number })
       setSaving(true);
       try {
         await persist(index);
-        await onboarding.completeStep("training"); // marks complete, routes to /onboarding/split
+        if (redo) {
+          // Retake finished — answers are saved; back to Settings.
+          pushToast("Onboarding quiz updated");
+          router.replace("/settings");
+        } else {
+          await onboarding.completeStep("training"); // marks complete, routes to /onboarding/split
+        }
       } catch {
         setSaving(false);
       }
@@ -136,6 +164,7 @@ export default function TrainingWizard({ initialStep }: { initialStep: number })
   };
 
   const redirecting =
+    !redo &&
     onboarding.status === "ready" &&
     (onboarding.isComplete || onboarding.currentStep !== "training");
 

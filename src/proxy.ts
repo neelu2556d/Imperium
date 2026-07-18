@@ -29,7 +29,16 @@ export async function proxy(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const isAuthed = Boolean(user) && !user?.is_anonymous;
+  // A "real" account passes the wall, and so does a device session — an
+  // anonymous session the email-only sign-in tagged with a claimed email
+  // (the fallback used when the Supabase project requires email
+  // confirmation; see signInWithEmailOnly). Untagged anonymous sessions
+  // (onboarding persistence) still count as logged-out.
+  const claimedEmail = (user?.user_metadata as Record<string, unknown> | undefined)
+    ?.claimed_email;
+  const isAuthed =
+    Boolean(user) &&
+    (!user?.is_anonymous || typeof claimedEmail === "string");
 
   const { pathname } = request.nextUrl;
   const isAuthRoute = pathname.startsWith("/auth");

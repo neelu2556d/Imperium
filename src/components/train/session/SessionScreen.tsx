@@ -6,10 +6,12 @@ import { useRouter } from "next/navigation";
 import ImperiumGem from "@/components/welcome/ImperiumGem";
 import ExerciseCard, { type LoggedMap } from "@/components/train/session/ExerciseCard";
 import SwapSheet, { type SwapScope } from "@/components/train/session/SwapSheet";
+import AddExerciseSheet, { type AddScope } from "@/components/train/session/AddExerciseSheet";
 import HistorySheet from "@/components/train/session/HistorySheet";
-import { BackIcon, GearIcon, StarIcon } from "@/components/train/session/icons";
+import { BackIcon, GearIcon, PlusIcon, StarIcon } from "@/components/train/session/icons";
 import type { ExerciseHit } from "@/lib/supabase/exercises";
 import {
+  addSessionExercise,
   fetchSessionDay,
   fetchSessionExercises,
   finishSession,
@@ -49,6 +51,7 @@ export default function SessionScreen({ dayId }: { dayId: string }) {
   const [deload, setDeload] = useState(false);
 
   const [swapId, setSwapId] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
   const [historyId, setHistoryId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [finishing, setFinishing] = useState(false);
@@ -182,6 +185,27 @@ export default function SessionScreen({ dayId }: { dayId: string }) {
     setSetCounts((prev) => ({ ...prev, [newId]: target.prescribedSets }));
   };
 
+  const handleAdd = async (pick: ExerciseHit, scope: AddScope) => {
+    setAdding(false);
+    if (state.status !== "ready") return;
+    setError(null);
+    try {
+      const added = await addSessionExercise(dayId, pick, scope);
+      setState({
+        status: "ready",
+        day: state.day,
+        exercises: [...state.exercises, added],
+      });
+      setLogged((prev) => ({ ...prev, [added.exerciseId]: new Map() }));
+      setSetCounts((prev) => ({
+        ...prev,
+        [added.exerciseId]: added.prescribedSets,
+      }));
+    } catch {
+      setError("Couldn't add that exercise — check your connection and try again.");
+    }
+  };
+
   const handleFinish = async () => {
     if (finishing || state.status !== "ready") return;
     setFinishing(true);
@@ -313,6 +337,22 @@ export default function SessionScreen({ dayId }: { dayId: string }) {
         </div>
       )}
 
+      {/* manual add — search the library or create a custom exercise */}
+      <button
+        type="button"
+        data-no-vitality
+        onClick={() => setAdding(true)}
+        className="mono mt-5 flex w-full items-center justify-center gap-2 rounded-xl border border-dashed py-3.5 text-[0.66rem] font-semibold uppercase tracking-[0.14em] transition-colors hover:border-mint hover:text-fg"
+        style={{
+          borderColor: "var(--color-border-strong)",
+          background: "transparent",
+          color: "var(--color-muted-strong)",
+        }}
+      >
+        <PlusIcon size={14} />
+        Add exercise manually
+      </button>
+
       {error && (
         <p className="mt-5 text-sm" style={{ color: "var(--color-red)" }} role="alert">
           {error}
@@ -383,6 +423,15 @@ export default function SessionScreen({ dayId }: { dayId: string }) {
             />
           );
         })()}
+
+      {adding && (
+        <AddExerciseSheet
+          dayName={day.name}
+          takenNames={new Set(exercises.map((e) => e.name.toLowerCase()))}
+          onClose={() => setAdding(false)}
+          onConfirm={(pick, scope) => void handleAdd(pick, scope)}
+        />
+      )}
 
       {historyId &&
         (() => {

@@ -2,18 +2,19 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import DayCard from "@/components/train/DayCard";
-import { PlusIcon, RefreshIcon } from "@/components/train/icons";
+import { RefreshIcon, TrashIcon } from "@/components/train/icons";
 import { formatToday } from "@/lib/home/datetime";
 import { todayIndexInSplit } from "@/lib/train/schedule";
 import {
+  deleteSession,
   fetchFirstSessionDate,
   fetchLastSession,
   fetchSplitDays,
   type LastSession,
   type TrainSplitDay,
 } from "@/lib/supabase/train";
+import { pushToast } from "@/lib/toast";
 
 interface TrainData {
   /** First-ever logged session date — the anchor the split cycles from. */
@@ -40,11 +41,16 @@ function formatSessionDate(iso: string): string {
 }
 
 export default function TrainDashboard() {
-  const router = useRouter();
   const [state, setState] = useState<LoadState>({ status: "loading" });
   // Which split day the user has chosen to train today. `null` means "follow
   // the schedule" — we fall back to the auto-cycled day below.
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  // Two-tap delete for the last-session card: first tap arms, second confirms.
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  // Bumped after a delete so the effect refetches (the next-newest session
+  // becomes the new "last session").
+  const [reloadKey, setReloadKey] = useState(0);
 
   // The date sub-header reflects the user's wall clock; the server renders its
   // own timezone and the client corrects on hydration (suppressed below).
@@ -65,7 +71,20 @@ export default function TrainDashboard() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [reloadKey]);
+
+  const handleDeleteLastSession = async (date: string) => {
+    if (deleting) return;
+    setDeleting(true);
+    const ok = await deleteSession(date);
+    setDeleting(false);
+    setConfirmingDelete(false);
+    if (ok) {
+      pushToast("Session deleted");
+      setState({ status: "loading" });
+      setReloadKey((k) => k + 1);
+    }
+  };
 
   const loading = state.status === "loading";
   const data = state.status === "ready" ? state.data : null;
@@ -86,7 +105,6 @@ export default function TrainDashboard() {
     selectedIndex !== null && selectedIndex < days.length
       ? selectedIndex
       : scheduledIndex;
-  const activeDay = activeIndex >= 0 ? days[activeIndex] : null;
 
   return (
     <div className="w-full px-5 pb-28 pt-8 md:px-8 lg:px-12">
@@ -104,7 +122,7 @@ export default function TrainDashboard() {
           </p>
           {!loading && days.length > 0 && (
             <p className="mt-2 text-sm text-muted">
-              Tap any day to pick what you&apos;re training today.
+              Tap a training day to open it and start logging.
             </p>
           )}
         </div>
@@ -183,13 +201,46 @@ export default function TrainDashboard() {
                 </p>
               )}
             </div>
-            <div className="shrink-0 text-right">
-              <div className="serif-italic text-2xl" data-no-vitality style={{ color: MINT }}>
-                {data.lastSession.totalSets}
+            <div className="flex shrink-0 items-center gap-3">
+              <div className="text-right">
+                <div className="serif-italic text-2xl" data-no-vitality style={{ color: MINT }}>
+                  {data.lastSession.totalSets}
+                </div>
+                <div className="mono text-[0.55rem] uppercase tracking-[0.14em] text-muted">
+                  Sets logged
+                </div>
               </div>
-              <div className="mono text-[0.55rem] uppercase tracking-[0.14em] text-muted">
-                Sets logged
-              </div>
+              <button
+                type="button"
+                data-no-vitality
+                aria-label={
+                  confirmingDelete
+                    ? "Confirm delete last session"
+                    : "Delete last session"
+                }
+                disabled={deleting}
+                onClick={(e) => {
+                  // The button lives inside the history Link — don't navigate.
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (!confirmingDelete) {
+                    setConfirmingDelete(true);
+                    return;
+                  }
+                  void handleDeleteLastSession(data.lastSession!.date);
+                }}
+                className="mono flex h-8 shrink-0 items-center justify-center gap-1 rounded-full border px-2.5 text-[0.58rem] font-semibold uppercase tracking-[0.1em] transition-colors"
+                style={{
+                  borderColor: confirmingDelete
+                    ? "var(--color-red)"
+                    : "var(--color-border-strong)",
+                  color: confirmingDelete ? "var(--color-red)" : "var(--color-muted)",
+                  background: "transparent",
+                }}
+              >
+                <TrashIcon size={13} />
+                {confirmingDelete && (deleting ? "…" : "Sure?")}
+              </button>
             </div>
           </Link>
         ) : (
@@ -199,19 +250,6 @@ export default function TrainDashboard() {
         )}
       </section>
 
-      {/* ---------- floating "Log today" ---------- */}
-      {activeDay && !activeDay.isRest && (
-        <button
-          type="button"
-          data-no-vitality
-          onClick={() => router.push(`/train/session/${activeDay.id}`)}
-          className="btn-primary fixed bottom-24 right-5 z-40 shadow-glass md:right-8"
-          style={{ paddingInline: "1.25rem" }}
-        >
-          <PlusIcon size={16} />
-          Log {activeDay.name}
-        </button>
-      )}
     </div>
   );
 }

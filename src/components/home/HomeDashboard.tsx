@@ -221,22 +221,36 @@ function Card({
 }
 
 /* ========================================================================
-   03 — Imperium centrepiece: circuit traces framing the gem.
-   Shares the card shell but none of the data-card chrome (no icon/arrow;
-   its label is centred with the gem rather than bottom-left).
+   03 — Imperium centrepiece, matching the reference mentor tile: a rounded
+   chip framing the (static) gem, dim circuit wires converging on it with
+   accent pulses riding them, a breathing light disc behind, and the
+   label/kicker pinned bottom-left under a corner scrim.
    ======================================================================== */
 
-const TRACES = [
-  "M 0,22 L 32,22 L 32,0",
-  "M 100,30 L 72,30 L 72,8",
-  "M 0,74 L 26,74 L 26,100",
-  "M 100,70 L 70,70 L 70,92",
-  "M 55,0 L 55,14 L 90,14",
+/** Dim always-on wires (reference tints: mint / iris / gold). The tracks run
+ *  far past the 434×250 viewBox on purpose — with `slice` scaling they always
+ *  reach the card edge regardless of the card's aspect ratio. */
+const VEE_WIRES: Array<{ d: string; tint: string }> = [
+  { d: "M216 66 V2", tint: "rgba(167,243,208,0.2)" },
+  { d: "M262 96 H300 V40 H760", tint: "rgba(185,163,255,0.2)" },
+  { d: "M262 140 H320 V192 H760", tint: "rgba(232,200,120,0.2)" },
+  { d: "M190 158 V248", tint: "rgba(167,243,208,0.2)" },
+  { d: "M170 140 H114 V192 H-326", tint: "rgba(185,163,255,0.2)" },
+  { d: "M170 96 H134 V56 H-326", tint: "rgba(232,200,120,0.2)" },
+];
+
+/** The same tracks oriented outside-in, so the feed pulses run toward the chip. */
+const VEE_FEEDS = [
+  "M216 2 V66",
+  "M760 40 H300 V96 H262",
+  "M760 192 H320 V140 H262",
+  "M190 248 V158",
+  "M-326 192 H114 V140 H170",
+  "M-326 56 H134 V96 H170",
 ];
 
 function ImperiumCard() {
   const router = useRouter();
-  const reduced = useReducedMotion();
   const cardRef = useMotionPause<HTMLDivElement>();
   const open = () => router.push("/mentor");
 
@@ -255,67 +269,55 @@ function ImperiumCard() {
         }
       }}
     >
+      <div className="bento-vee-disc" aria-hidden />
       <svg
-        className="bento-traces"
-        viewBox="0 0 100 100"
-        preserveAspectRatio="none"
+        className="bento-vee-art"
+        viewBox="0 0 434 250"
+        preserveAspectRatio="xMidYMid slice"
         aria-hidden
       >
-        {TRACES.map((d, i) => (
+        {VEE_WIRES.map(({ d, tint }) => (
+          <path key={d} className="bento-wire" style={{ stroke: tint }} d={d} />
+        ))}
+        {VEE_FEEDS.map((d, i) => (
           <path
             key={d}
-            id={`trace-${i}`}
+            className="bento-feed"
+            pathLength={100}
             d={d}
-            stroke="rgba(255,255,255,0.05)"
-            strokeWidth={1}
-            fill="none"
-            vectorEffect="non-scaling-stroke"
+            style={{ animationDelay: `${(i * 0.7).toFixed(1)}s` }}
           />
         ))}
-        {/* one accent dot per trace, staggered so they fire in sequence */}
-        {!reduced &&
-          TRACES.map((d, i) => (
-            <MotionDot
-              key={d}
-              size={4}
-              color="var(--accent)"
-              glow="3px var(--accent)"
-              opacity={0}
-            >
-              <animateMotion
-                dur="2s"
-                repeatCount="indefinite"
-                begin={`${(i * 0.7).toFixed(1)}s`}
-              >
-                <mpath href={`#trace-${i}`} />
-              </animateMotion>
-              <animate
-                attributeName="opacity"
-                values="0;1;1;0"
-                keyTimes="0;0.1;0.8;1"
-                dur="2s"
-                repeatCount="indefinite"
-                begin={`${(i * 0.7).toFixed(1)}s`}
-              />
-            </MotionDot>
-          ))}
+        <rect className="bento-chip" x={170} y={66} width={92} height={92} rx={24} />
+        {/* the gem — static (no rotation), locked to the chip's centre. Inlined
+            from ImperiumGem so it scales with the chip geometry. */}
+        <g
+          className="bento-chip-gem"
+          transform="translate(216 112) scale(0.42) translate(-60 -75)"
+        >
+          <polygon points="60,8 22,46 60,72" fill="var(--color-mint-soft)" />
+          <polygon points="60,8 98,46 60,72" fill="var(--color-mint)" />
+          <polygon points="22,46 32,112 60,72" fill="var(--color-mint-deep)" />
+          <polygon points="98,46 88,112 60,72" fill="var(--color-mint-hover)" />
+          <polygon points="32,112 60,132 60,72" fill="var(--color-mint)" />
+          <polygon points="88,112 60,132 60,72" fill="var(--color-mint-deep)" />
+          <polygon
+            points="60,8 22,46 98,46"
+            fill="none"
+            stroke="rgba(255,255,255,0.25)"
+            strokeWidth="1"
+          />
+        </g>
       </svg>
+      <div className="bento-vee-scrim" aria-hidden />
       <span className="bento-index">03</span>
-      <div className="bento-imperium-inner">
-        <div className="bento-gem-box">
-          {/* nested wrappers: pulse animates filter, spin animates transform —
-              combining them on one element would overwrite the gem's float */}
-          <span className="bento-gem-pulse">
-            <span className="bento-gem-spin">
-              <ImperiumGem size={56} showChevron={false} />
-            </span>
-          </span>
-        </div>
-        <p className="bento-imperium-name" data-no-vitality>
-          Imperium
-        </p>
-        <span className="bento-imperium-kicker">YOUR AI MENTOR</span>
-      </div>
+      <span className="bento-vee-label" data-no-vitality>
+        Imperium
+      </span>
+      <span className="bento-vee-kicker">Your AI mentor</span>
+      <span className="bento-arrow" aria-hidden>
+        →
+      </span>
     </div>
   );
 }
@@ -375,17 +377,20 @@ function MotionDot({
   color,
   glow,
   opacity,
+  className,
   children,
 }: {
   size: number;
   color: string;
   glow: string;
   opacity?: number;
+  className?: string;
   children: ReactNode;
 }) {
   return (
     <path
       d="M 0,0 L 0.01,0.01"
+      className={className}
       stroke={color}
       strokeWidth={size}
       strokeLinecap="round"
@@ -396,6 +401,49 @@ function MotionDot({
     >
       {children}
     </path>
+  );
+}
+
+/**
+ * The reference dashboard's ambient "orb": a soft breathing glow with a
+ * bright node core, drifting back and forth along a path. Two stacked
+ * MotionDots ride identical SMIL timelines (CSS can't follow a path). The
+ * default keyPoints wander the line; callers can pass a dwell-and-hop
+ * pattern instead (see BusinessChart).
+ */
+function WanderOrb({
+  pathId,
+  dur = "16s",
+  color = "var(--accent)",
+  keyPoints = "0.08;0.9;0.35;0.72;0.08",
+  keyTimes = "0;0.3;0.55;0.8;1",
+}: {
+  pathId: string;
+  dur?: string;
+  color?: string;
+  keyPoints?: string;
+  keyTimes?: string;
+}) {
+  const motion = (
+    <animateMotion
+      dur={dur}
+      repeatCount="indefinite"
+      calcMode="linear"
+      keyPoints={keyPoints}
+      keyTimes={keyTimes}
+    >
+      <mpath href={`#${pathId}`} />
+    </animateMotion>
+  );
+  return (
+    <>
+      <MotionDot size={16} color={color} glow={`6px ${color}`} className="bento-orb-glow">
+        {motion}
+      </MotionDot>
+      <MotionDot size={6.5} color="#eafff5" glow={`3px ${color}`}>
+        {motion}
+      </MotionDot>
+    </>
   );
 }
 
@@ -472,7 +520,7 @@ function TrainChart({ volumes }: { volumes: number[] }) {
   const chartRef = useMotionPause<HTMLDivElement>();
   const ys = trainYs(volumes);
   const n = ys.length;
-  // 10-unit inset each side keeps the endpoint dot inside the clipped area.
+  // 10-unit inset each side keeps the orb inside the clipped area.
   const xs = ys.map((_, i) => 10 + (i * 480) / (n - 1));
 
   return (
@@ -480,34 +528,19 @@ function TrainChart({ volumes }: { volumes: number[] }) {
       <svg viewBox="0 0 500 100" preserveAspectRatio="none" aria-hidden>
         <path
           id="train-path"
+          className="bento-mot"
           d={smoothPath(xs, ys)}
-          stroke="var(--accent)"
-          strokeWidth={1.5}
-          fill="none"
           vectorEffect="non-scaling-stroke"
         />
-        {/* the glowing dot travels the sparkline; the line itself is static */}
-        {!reduced && (
-          <MotionDot size={10} color="#fff" glow="5px white" opacity={0}>
-            <animateMotion dur="5s" repeatCount="indefinite" calcMode="linear">
-              <mpath href="#train-path" />
-            </animateMotion>
-            <animate
-              attributeName="opacity"
-              values="0;1;1;1;0"
-              keyTimes="0;0.05;0.75;0.92;1"
-              dur="5s"
-              repeatCount="indefinite"
-            />
-          </MotionDot>
-        )}
+        {/* the orb drifts along the sparkline; the line itself is static */}
+        {!reduced && <WanderOrb pathId="train-path" dur="16s" />}
       </svg>
       {reduced && (
         <ChartDot
           leftPct={(xs[n - 1] / 500) * 100}
           topPct={ys[n - 1]}
-          color="#fff"
-          glow="4px white"
+          color="var(--accent)"
+          glow="4px var(--accent)"
         />
       )}
     </div>
@@ -521,39 +554,29 @@ const EKG_PATH =
   "M 0,35 L 55,35 L 68,35 L 78,26 L 88,43.5 L 98,33.5 L 110,35 L 300,35";
 
 function VitalsChart() {
+  const reduced = useReducedMotion();
   const chartRef = useMotionPause<HTMLDivElement>();
 
   return (
     <div ref={chartRef} className="bento-chart">
       <svg viewBox="0 0 300 70" preserveAspectRatio="none" aria-hidden>
-        {/* two copies, one viewBox-width apart, scrolled left as a unit —
-            when copy 2 reaches copy 1's start the loop restarts seamlessly */}
-        <g className="bento-ekg-group">
-          <path
-            d={EKG_PATH}
-            stroke="var(--accent)"
-            strokeWidth={1.5}
-            fill="none"
-            vectorEffect="non-scaling-stroke"
-          />
-          <path
-            d={EKG_PATH}
-            transform="translate(300, 0)"
-            stroke="var(--accent)"
-            strokeWidth={1.5}
-            fill="none"
-            vectorEffect="non-scaling-stroke"
-          />
-        </g>
+        {/* static EKG trace, reference-style; the orb wanders it */}
+        <path
+          id="vitals-path"
+          className="bento-mot"
+          d={EKG_PATH}
+          vectorEffect="non-scaling-stroke"
+        />
+        {!reduced && <WanderOrb pathId="vitals-path" dur="13s" />}
       </svg>
-      {/* fixed at x=240, y=35 of the 300×70 viewBox — the line passes under it */}
-      <ChartDot
-        className="bento-dot-pulse"
-        leftPct={80}
-        topPct={50}
-        color="var(--accent)"
-        glow="5px var(--accent)"
-      />
+      {reduced && (
+        <ChartDot
+          leftPct={80}
+          topPct={50}
+          color="var(--accent)"
+          glow="5px var(--accent)"
+        />
+      )}
     </div>
   );
 }
@@ -577,50 +600,19 @@ function FuelChart() {
   return (
     <div ref={chartRef} className="bento-chart">
       <svg viewBox="0 0 200 120" preserveAspectRatio="none" aria-hidden>
-        <g className="bento-waves-group">
-          <path
-            id="fuel-wave-1"
-            d={FUEL_WAVE_1}
-            stroke="var(--accent)"
-            strokeWidth={1.5}
-            fill="none"
-            opacity={0.9}
-            vectorEffect="non-scaling-stroke"
-          />
-          <path
-            d={FUEL_WAVE_1}
-            transform="translate(200, 0)"
-            stroke="var(--accent)"
-            strokeWidth={1.5}
-            fill="none"
-            opacity={0.9}
-            vectorEffect="non-scaling-stroke"
-          />
-          <path
-            d={FUEL_WAVE_2}
-            stroke="rgba(255,255,255,0.18)"
-            strokeWidth={1}
-            fill="none"
-            vectorEffect="non-scaling-stroke"
-          />
-          <path
-            d={FUEL_WAVE_2}
-            transform="translate(200, 0)"
-            stroke="rgba(255,255,255,0.18)"
-            strokeWidth={1}
-            fill="none"
-            vectorEffect="non-scaling-stroke"
-          />
-        </g>
-        {/* the dot retraces wave 1 at the group's scroll speed, so it appears
-            to sit on and travel with the wave */}
-        {!reduced && (
-          <MotionDot size={10} color="var(--accent)" glow="5px var(--accent)">
-            <animateMotion dur="4s" repeatCount="indefinite" calcMode="linear">
-              <mpath href="#fuel-wave-1" />
-            </animateMotion>
-          </MotionDot>
-        )}
+        {/* static waves, reference-style: bright lead wave + dim echo */}
+        <path
+          id="fuel-wave-1"
+          className="bento-mot"
+          d={FUEL_WAVE_1}
+          vectorEffect="non-scaling-stroke"
+        />
+        <path
+          className="bento-motd"
+          d={FUEL_WAVE_2}
+          vectorEffect="non-scaling-stroke"
+        />
+        {!reduced && <WanderOrb pathId="fuel-wave-1" dur="14s" />}
       </svg>
       {reduced && (
         /* on wave 1 near the right end — the x=133.3, y=45 node of the curve */
@@ -645,6 +637,7 @@ const CANDLES = [
 const CANDLE_GREEN = "#4ade80";
 
 function BusinessChart() {
+  const reduced = useReducedMotion();
   const chartRef = useMotionPause<HTMLDivElement>();
 
   return (
@@ -657,32 +650,42 @@ function BusinessChart() {
             /* mount-only rise-in, staggered left to right */
             style={{ animationDelay: `${i * 80}ms` }}
           >
-            {/* live-market breathe on a nested group so its infinite
-                animation never fights the rise-in over the same properties */}
-            <g
-              className="bento-candle-live"
-              style={{ animationDelay: `${i * 350}ms` }}
-            >
-              <line
-                x1={x}
-                y1={wickTop}
-                x2={x}
-                y2={wickBottom}
-                stroke={CANDLE_GREEN}
-                strokeWidth={1.5}
-                vectorEffect="non-scaling-stroke"
-              />
-              <rect
-                x={x - 7}
-                y={bodyY}
-                width={14}
-                height={bodyH}
-                rx={4}
-                fill={CANDLE_GREEN}
-              />
-            </g>
+            <line
+              className="bento-candle-wick"
+              x1={x}
+              y1={wickTop}
+              x2={x}
+              y2={wickBottom}
+              vectorEffect="non-scaling-stroke"
+            />
+            <rect
+              className="bento-candle-body"
+              x={x - 7}
+              y={bodyY}
+              width={14}
+              height={bodyH}
+              rx={4}
+              vectorEffect="non-scaling-stroke"
+            />
           </g>
         ))}
+        {/* invisible track over the wick tops for the hopping orb */}
+        <path
+          id="business-path"
+          d="M 40,14 L 90,4 L 150,19 L 200,1"
+          fill="none"
+          stroke="none"
+        />
+        {!reduced && (
+          <WanderOrb
+            pathId="business-path"
+            dur="12s"
+            color={CANDLE_GREEN}
+            /* dwell on each candle, hop to the next (reference orb mode "hop") */
+            keyPoints="0;0;0.33;0.33;0.66;0.66;1;1;0.66;0.66;0.33;0.33;0;0"
+            keyTimes="0;0.1;0.15;0.25;0.3;0.4;0.45;0.55;0.6;0.7;0.75;0.85;0.9;1"
+          />
+        )}
       </svg>
     </div>
   );

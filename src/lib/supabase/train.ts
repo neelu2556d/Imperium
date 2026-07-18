@@ -247,6 +247,36 @@ export async function fetchLastSession(): Promise<LastSession | null> {
   }
 }
 
+/**
+ * Deletes a logged session: every set logged on `date` plus that date's
+ * completion marker(s). Returns true on success; failures surface a toast and
+ * return false so callers can leave the UI untouched.
+ */
+export async function deleteSession(date: string): Promise<boolean> {
+  try {
+    const userId = await ensureAnonymousSession();
+
+    const { error } = await supabase
+      .from("set_logs")
+      .delete()
+      .eq("user_id", userId)
+      .eq("log_date", date);
+    if (error) throw error;
+
+    const { error: completionError } = await supabase
+      .from("session_completions")
+      .delete()
+      .eq("user_id", userId)
+      .eq("completed_date", date);
+    if (completionError) throw completionError;
+
+    return true;
+  } catch {
+    reportQueryError("Couldn't delete that session. Try again.");
+    return false;
+  }
+}
+
 /** One exercise's contribution to a past session, for the history list. */
 export interface HistoryExercise {
   exerciseId: string | null;

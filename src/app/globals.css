@@ -651,13 +651,14 @@ select,
   opacity: 0.85;
 }
 
+/* Pure vertical float — the gem itself never rotates. */
 @keyframes vtGemFloat {
   0%,
   100% {
-    transform: translateY(0) rotate(-2deg);
+    transform: translateY(0);
   }
   50% {
-    transform: translateY(-8px) rotate(2deg);
+    transform: translateY(-8px);
   }
 }
 
@@ -1087,7 +1088,7 @@ select,
   margin-inline: auto;
   grid-template-columns: 1fr 1.1fr 0.85fr;
   grid-template-rows: 200px 190px 190px;
-  gap: 10px;
+  gap: 14px;
 }
 
 .bento-grid.has-business {
@@ -1115,17 +1116,28 @@ select,
   grid-row: 4 / 5;
 }
 
-/* ----- shared card shell ----- */
+/* ----- shared card shell (reference tile look) ----- */
 .bento-card {
   position: relative;
   overflow: hidden;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  border-radius: 16px;
+  background: linear-gradient(165deg, rgba(16, 26, 22, 0.55), rgba(7, 12, 10, 0.4));
+  border: 1px solid rgb(var(--accent-rgb) / 0.1);
+  border-radius: 20px;
   padding: 16px;
   cursor: pointer;
   outline: none;
-  transition: transform var(--duration-fast) var(--ease-out-soft);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 22px 50px -30px rgba(0, 0, 0, 0.75);
+  transition:
+    transform var(--duration-fast) var(--ease-out-soft),
+    border-color 0.4s var(--ease-premium),
+    background 0.4s var(--ease-premium);
+}
+
+.bento-card:hover {
+  border-color: rgb(var(--accent-rgb) / 0.3);
+  background: linear-gradient(165deg, rgba(22, 34, 29, 0.62), rgba(9, 15, 13, 0.46));
 }
 
 .bento-card:active {
@@ -1136,32 +1148,49 @@ select,
   border-color: rgb(var(--accent-rgb) / 0.3);
 }
 
+/* dark grounding gradient behind the data cards' bottom chrome */
+.bento-card:not(.bento-imperium)::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(
+    0deg,
+    rgba(4, 7, 6, 0.6) 0,
+    rgba(4, 7, 6, 0.16) 22%,
+    transparent 44%
+  );
+}
+
 /* ----- card chrome ----- */
 .bento-index {
   position: absolute;
-  top: 14px;
-  left: 16px;
+  top: 15px;
+  left: 20px;
   z-index: 2;
   font-family: var(--font-mono);
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.22);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: rgba(255, 255, 255, 0.38);
 }
 
 .bento-icon {
   position: absolute;
-  top: 14px;
+  top: 13px;
   right: 16px;
   z-index: 2;
   display: inline-flex;
-  color: rgba(255, 255, 255, 0.28);
+  color: var(--accent);
+  opacity: 0.4;
 }
 
 .bento-sub {
   position: absolute;
   bottom: 45px;
-  left: 16px;
+  left: 20px;
   z-index: 2;
-  font-family: var(--font-sans);
+  font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 0.12em;
   color: var(--accent);
@@ -1170,7 +1199,7 @@ select,
 .bento-label {
   position: absolute;
   bottom: 16px;
-  left: 16px;
+  left: 20px;
   z-index: 2;
   font-family: var(--font-serif);
   font-style: italic;
@@ -1181,11 +1210,11 @@ select,
 
 .bento-arrow {
   position: absolute;
-  bottom: 16px;
-  right: 16px;
+  bottom: 17px;
+  right: 18px;
   z-index: 2;
   font-size: 14px;
-  color: rgba(255, 255, 255, 0.35);
+  color: rgba(255, 255, 255, 0.4);
 }
 
 /* ----- chart layer ----- */
@@ -1203,8 +1232,15 @@ select,
   height: 100%;
 }
 
-/* ----- Imperium centrepiece ----- */
-.bento-traces {
+/* ----- Imperium centrepiece (reference mentor tile) -----
+   A rounded chip frames the static gem; dim tri-colour wires converge on it
+   (accent pulses ride them — see .bento-feed in the motion pass), a light
+   disc breathes behind, and a corner scrim grounds the bottom-left label. */
+.bento-imperium {
+  padding: 0;
+}
+
+.bento-vee-art {
   position: absolute;
   inset: 0;
   z-index: 0;
@@ -1212,39 +1248,90 @@ select,
   height: 100%;
 }
 
-.bento-imperium-inner {
-  position: relative;
+.bento-vee-disc {
+  position: absolute;
+  left: 50%;
+  top: 45%;
+  width: 320px;
+  height: 320px;
+  transform: translate(-50%, -50%);
+  z-index: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    circle,
+    rgb(var(--accent-rgb) / 0.11) 0,
+    rgb(var(--accent-rgb) / 0.05) 42%,
+    transparent 66%
+  );
+  animation: bentoVeeDisc 9s var(--ease-premium) infinite;
+}
+
+@keyframes bentoVeeDisc {
+  0%,
+  100% {
+    opacity: 0.75;
+    transform: translate(-50%, -50%) scale(0.97);
+  }
+  50% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.03);
+  }
+}
+
+.bento-vee-scrim {
+  position: absolute;
+  inset: 0;
   z-index: 1;
-  display: flex;
-  height: 100%;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
+  pointer-events: none;
+  background: linear-gradient(
+    105deg,
+    rgba(4, 6, 10, 0.78),
+    rgba(4, 6, 10, 0.18) 36%,
+    transparent 54%
+  );
 }
 
-.bento-gem-box {
-  display: inline-flex;
-  margin-bottom: 16px;
-  padding: 16px;
-  background: rgba(255, 255, 255, 0.07);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 14px;
+.bento-wire {
+  fill: none;
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
-.bento-imperium-name {
+.bento-chip {
+  fill: rgb(var(--accent-rgb) / 0.035);
+  stroke: rgb(var(--accent-rgb) / 0.4);
+  stroke-width: 1.6;
+}
+
+.bento-chip-gem {
+  filter: drop-shadow(0 0 10px var(--color-mint-glow));
+}
+
+.bento-vee-label {
+  position: absolute;
+  left: 20px;
+  bottom: 44px;
+  z-index: 2;
   font-family: var(--font-serif);
   font-style: italic;
-  font-size: 26px;
+  font-size: 28px;
+  line-height: 1;
   color: #fff;
 }
 
-.bento-imperium-kicker {
-  margin-top: 6px;
-  font-family: var(--font-sans);
-  font-size: 10px;
+.bento-vee-kicker {
+  position: absolute;
+  left: 22px;
+  bottom: 24px;
+  z-index: 2;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
   letter-spacing: 0.18em;
+  text-transform: uppercase;
   color: var(--accent);
+  opacity: 0.9;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1559,87 +1646,85 @@ select,
     stroke 600ms ease;
 }
 
-/* ----- 15. home bento cards — ambient chart motion -----
-   CSS transforms on SVG children act in viewBox user units, so the px
-   distances below equal one viewBox width per loop regardless of how the
-   stretched (preserveAspectRatio="none") svg renders. Path-following dots
-   are SMIL in HomeDashboard.tsx (CSS can't follow a path); both kinds are
-   paused offscreen — .bento-motion-paused here, svg.pauseAnimations() for
-   SMIL — by the card's IntersectionObserver. */
+/* ----- 15. home bento cards — ambient chart motion (reference style) -----
+   Lines are STATIC; the life comes from a wandering orb per chart (SMIL, in
+   HomeDashboard.tsx — CSS can't follow a path), accent pulses feeding along
+   the Imperium card's wires, and the breathing disc behind its chip. Both
+   kinds of animation are paused offscreen — .bento-motion-paused here,
+   svg.pauseAnimations() for SMIL — by the card's IntersectionObserver. */
 
-/* Vitals: the EKG line (two tiled copies) scrolls one viewBox width left */
-.bento-ekg-group {
-  animation: bentoEkgScroll 2.5s linear infinite;
-}
-@keyframes bentoEkgScroll {
-  from {
-    transform: translateX(0px);
-  }
-  to {
-    transform: translateX(-300px);
-  }
+/* Bright chart line (reference .mot): accent stroke with a soft double glow */
+.bento-mot {
+  fill: none;
+  stroke: rgb(var(--accent-rgb) / 0.92);
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 0 3px rgb(var(--accent-rgb) / 0.55))
+    drop-shadow(0 0 9px rgb(var(--accent-rgb) / 0.32));
 }
 
-/* Vitals: the fixed dot pulses in place (scale ≈ r 5→7) */
-.bento-dot-pulse {
-  animation: bentoDotPulse 2.5s ease-in-out infinite;
+/* Dim echo line (reference .motd) */
+.bento-motd {
+  fill: none;
+  stroke: rgb(var(--accent-rgb) / 0.52);
+  stroke-width: 1.4;
+  stroke-linecap: round;
 }
-@keyframes bentoDotPulse {
+
+/* The orb's outer glow breathes (reference veeBreathe) */
+.bento-orb-glow {
+  animation: bentoOrbBreathe 5s var(--ease-premium) infinite;
+}
+@keyframes bentoOrbBreathe {
   0%,
   100% {
-    transform: scale(1);
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 0.95;
+  }
+}
+
+/* Imperium: a 5-unit pulse runs each wire outside-in (dash gap = the
+   pathLength=100 normalisation), staggered per wire via inline delay */
+.bento-feed {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 5 195;
+  opacity: 0;
+  will-change: stroke-dashoffset, opacity;
+  filter: drop-shadow(0 0 3px rgb(var(--accent-rgb) / 0.55));
+  animation: bentoFeedRun 4.2s linear infinite;
+}
+@keyframes bentoFeedRun {
+  /* dash position = −offset: 10 → −105 sweeps the pulse start→end
+     (one dash per 200-unit period, path normalised to 100) */
+  0% {
+    stroke-dashoffset: 10;
+    opacity: 0;
+  }
+  8% {
+    opacity: 1;
+  }
+  42% {
     opacity: 1;
   }
   50% {
-    transform: scale(1.4);
-    opacity: 0.6;
+    stroke-dashoffset: -105;
+    opacity: 0;
   }
-}
-
-/* Fuel: both sine waves (tiled copies) flow one viewBox width left */
-.bento-waves-group {
-  animation: bentoWaveFlow 4s linear infinite;
-}
-@keyframes bentoWaveFlow {
-  from {
-    transform: translateX(0px);
-  }
-  to {
-    transform: translateX(-200px);
-  }
-}
-
-/* Imperium: gem glow breathes… */
-.bento-gem-pulse {
-  display: inline-flex;
-  animation: bentoGemPulse 3s ease-in-out infinite;
-}
-@keyframes bentoGemPulse {
-  0%,
   100% {
-    filter: drop-shadow(0 0 6px var(--accent-glow));
-  }
-  50% {
-    filter: drop-shadow(0 0 18px var(--accent-glow));
-  }
-}
-/* …on a separate wrapper from the slow spin, so filter and transform
-   animations don't fight over one element */
-.bento-gem-spin {
-  display: inline-flex;
-  animation: bentoGemSpin 20s linear infinite;
-}
-@keyframes bentoGemSpin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
+    stroke-dashoffset: -105;
+    opacity: 0;
   }
 }
 
-/* Business: candles rise in once on mount (stagger via inline delay),
-   then sit completely static */
+/* Business: candles rise in once on mount (stagger via inline delay), then
+   sit static — outlined reference-style, green tint */
 .bento-candle-in {
   animation: bentoCandleIn 350ms ease both;
 }
@@ -1653,36 +1738,22 @@ select,
     opacity: 1;
   }
 }
-
-/* …then each candle breathes like a live market tick: a slow glow pulse plus
-   a hair of vertical stretch, staggered per candle via inline delay. Lives on
-   a nested group so it never fights the mount rise-in over transform/opacity. */
-.bento-candle-live {
-  transform-origin: center bottom;
-  transform-box: fill-box;
-  animation: bentoCandleLive 2.8s ease-in-out infinite;
+.bento-candle-wick {
+  stroke: rgba(74, 222, 128, 0.85);
+  stroke-width: 1.35;
+  stroke-linecap: round;
 }
-@keyframes bentoCandleLive {
-  0%,
-  100% {
-    transform: scaleY(1);
-    filter: drop-shadow(0 0 0 rgba(74, 222, 128, 0));
-    opacity: 0.85;
-  }
-  50% {
-    transform: scaleY(1.06);
-    filter: drop-shadow(0 0 5px rgba(74, 222, 128, 0.55));
-    opacity: 1;
-  }
+.bento-candle-body {
+  fill: rgba(74, 222, 128, 0.16);
+  stroke: rgba(74, 222, 128, 0.85);
+  stroke-width: 1.35;
+  filter: drop-shadow(0 0 4px rgba(74, 222, 128, 0.28));
 }
 
 /* offscreen: IntersectionObserver toggles this on the card/chart wrapper */
-.bento-motion-paused .bento-ekg-group,
-.bento-motion-paused .bento-dot-pulse,
-.bento-motion-paused .bento-waves-group,
-.bento-motion-paused .bento-candle-live,
-.bento-motion-paused .bento-gem-pulse,
-.bento-motion-paused .bento-gem-spin,
+.bento-motion-paused .bento-orb-glow,
+.bento-motion-paused .bento-feed,
+.bento-motion-paused .bento-vee-disc,
 .bento-motion-paused .vt-gem-svg {
   animation-play-state: paused;
 }
@@ -1708,12 +1779,9 @@ select,
   }
   .vt-water-wave,
   .vt-toast-bar,
-  .bento-ekg-group,
-  .bento-dot-pulse,
-  .bento-waves-group,
-  .bento-candle-live,
-  .bento-gem-pulse,
-  .bento-gem-spin {
+  .bento-orb-glow,
+  .bento-feed,
+  .bento-vee-disc {
     animation: none !important;
   }
   .bento-candle-in {

@@ -4,10 +4,13 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { BackIcon } from "@/components/train/session/icons";
+import { TrashIcon } from "@/components/train/icons";
 import {
+  deleteSession,
   fetchSessionHistory,
   type SessionHistoryEntry,
 } from "@/lib/supabase/train";
+import { pushToast } from "@/lib/toast";
 
 type LoadState =
   | { status: "loading" }
@@ -37,6 +40,9 @@ function formatSessionDate(iso: string): string {
 export default function HistoryScreen() {
   const router = useRouter();
   const [state, setState] = useState<LoadState>({ status: "loading" });
+  // Date whose delete button is armed ("Sure?") / currently deleting.
+  const [confirmDate, setConfirmDate] = useState<string | null>(null);
+  const [deletingDate, setDeletingDate] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -49,6 +55,26 @@ export default function HistoryScreen() {
   }, []);
 
   const sessions = state.status === "ready" ? state.sessions : [];
+
+  const handleDelete = async (date: string) => {
+    if (deletingDate) return;
+    if (confirmDate !== date) {
+      setConfirmDate(date);
+      return;
+    }
+    setDeletingDate(date);
+    const ok = await deleteSession(date);
+    setDeletingDate(null);
+    setConfirmDate(null);
+    if (ok) {
+      pushToast("Session deleted");
+      setState((prev) =>
+        prev.status === "ready"
+          ? { status: "ready", sessions: prev.sessions.filter((s) => s.date !== date) }
+          : prev
+      );
+    }
+  };
 
   return (
     <div className="w-full px-5 pb-28 pt-8 md:px-8 lg:px-12">
@@ -112,13 +138,41 @@ export default function HistoryScreen() {
                     </p>
                   )}
                 </div>
-                <div className="shrink-0 text-right">
-                  <div className="serif-italic text-2xl" data-no-vitality style={{ color: MINT }}>
-                    {s.totalSets}
+                <div className="flex shrink-0 items-center gap-3">
+                  <div className="text-right">
+                    <div className="serif-italic text-2xl" data-no-vitality style={{ color: MINT }}>
+                      {s.totalSets}
+                    </div>
+                    <div className="mono text-[0.55rem] uppercase tracking-[0.14em] text-muted">
+                      Sets
+                    </div>
                   </div>
-                  <div className="mono text-[0.55rem] uppercase tracking-[0.14em] text-muted">
-                    Sets
-                  </div>
+                  <button
+                    type="button"
+                    data-no-vitality
+                    aria-label={
+                      confirmDate === s.date
+                        ? `Confirm delete session on ${formatSessionDate(s.date)}`
+                        : `Delete session on ${formatSessionDate(s.date)}`
+                    }
+                    disabled={deletingDate !== null}
+                    onClick={() => void handleDelete(s.date)}
+                    className="mono flex h-8 shrink-0 items-center justify-center gap-1 rounded-full border px-2.5 text-[0.58rem] font-semibold uppercase tracking-[0.1em] transition-colors"
+                    style={{
+                      borderColor:
+                        confirmDate === s.date
+                          ? "var(--color-red)"
+                          : "var(--color-border-strong)",
+                      color:
+                        confirmDate === s.date
+                          ? "var(--color-red)"
+                          : "var(--color-muted)",
+                      background: "transparent",
+                    }}
+                  >
+                    <TrashIcon size={13} />
+                    {confirmDate === s.date && (deletingDate === s.date ? "…" : "Sure?")}
+                  </button>
                 </div>
               </div>
 

@@ -20,10 +20,10 @@ interface DayCardProps {
 const MINT = "var(--color-mint)";
 
 /**
- * One day in the horizontally-scrolling split row. Tapping the card picks it as
- * today's session. Collapsed it shows just the day name and its intensity badge;
- * the active card expands to reveal the exercise count and a "lock in" prompt
- * that starts the session. Rest days never expand past their REST badge.
+ * One day in the horizontally-scrolling split row. Tapping a training day
+ * opens its logging session straight away (rest days just mark themselves as
+ * today's pick). Collapsed it shows just the day name and its intensity badge;
+ * the chevron expands it to reveal the exercise count.
  */
 export default function DayCard({
   index,
@@ -43,7 +43,13 @@ export default function DayCard({
     if (isActive && !day.isRest) setExpanded(true);
   }
 
-  const startSession = () => router.push(`/train/session/${day.id}`);
+  // Tap = go. Training days open their session immediately; the selection
+  // still updates first so the dashboard highlight is right if the user
+  // navigates back.
+  const activate = () => {
+    onSelect();
+    if (!day.isRest) router.push(`/train/session/${day.id}`);
+  };
 
   // The active card gets a mint ring; the scheduled day (when not active) gets a
   // fainter outline so the default is still visible.
@@ -59,12 +65,12 @@ export default function DayCard({
       tabIndex={0}
       data-no-vitality
       aria-pressed={isActive}
-      aria-label={`Train ${day.name} today`}
-      onClick={onSelect}
+      aria-label={day.isRest ? `${day.name} — rest day` : `Open ${day.name} session`}
+      onClick={activate}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
-          onSelect();
+          activate();
         }
       }}
       className="card relative flex w-40 shrink-0 cursor-pointer flex-col p-3.5 text-left transition-colors hover:border-mint"
@@ -136,26 +142,14 @@ export default function DayCard({
         )}
       </div>
 
-      {/* active day's lock-in prompt, pinned to the bottom */}
+      {/* tap hint, pinned to the bottom of the active training day */}
       {isActive && !day.isRest && expanded && (
-        <button
-          type="button"
-          data-no-vitality
-          onClick={(e) => {
-            e.stopPropagation();
-            startSession();
-          }}
-          className="mono mt-2 flex items-center gap-1 text-left text-[0.62rem] font-medium uppercase tracking-[0.1em] transition-colors"
-          style={{
-            color: MINT,
-            background: "transparent",
-            border: "none",
-            padding: 0,
-            justifyContent: "flex-start",
-          }}
+        <span
+          className="mono mt-2 flex items-center gap-1 text-left text-[0.62rem] font-medium uppercase tracking-[0.1em]"
+          style={{ color: MINT }}
         >
-          Next up: tap to lock in →
-        </button>
+          Tap to open →
+        </span>
       )}
     </div>
   );

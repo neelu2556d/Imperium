@@ -9,6 +9,7 @@ import {
   postSignInDestination,
   type AuthFieldError,
 } from "@/lib/supabase/auth";
+import { pushToast } from "@/lib/toast";
 
 interface FieldErrors {
   email?: string;
@@ -20,6 +21,7 @@ export default function SignInScreen() {
   const [email, setEmail] = useState("");
   const [errors, setErrors] = useState<FieldErrors>({});
   const [submitting, setSubmitting] = useState(false);
+  const [success, setSuccess] = useState(false);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -39,6 +41,8 @@ export default function SignInScreen() {
     setSubmitting(true);
     try {
       await signInWithEmailOnly(trimmed);
+      setSuccess(true);
+      pushToast("Successfully logged in");
       // Skip onboarding when all 4 steps are done; otherwise resume it.
       const destination = await postSignInDestination();
       router.replace(destination);
@@ -75,12 +79,22 @@ export default function SignInScreen() {
           </p>
         )}
 
+        {success && (
+          <p
+            className="text-center text-sm"
+            style={{ color: "var(--color-mint)" }}
+            role="status"
+          >
+            ✓ Successfully logged in — taking you in…
+          </p>
+        )}
+
         <button
           type="submit"
           className="btn-primary mt-1 w-full"
           disabled={submitting}
         >
-          {submitting ? "Signing in…" : "Continue →"}
+          {success ? "Successfully logged in ✓" : submitting ? "Signing in…" : "Continue →"}
         </button>
       </form>
 

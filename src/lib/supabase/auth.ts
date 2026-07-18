@@ -34,7 +34,11 @@ export function mapAuthError(raw: string | null | undefined): AuthFieldError {
   if (msg.includes("password") && msg.includes("at least")) {
     return { field: "password", message: "Password is too short" };
   }
-  if (msg.includes("unable to validate email") || msg.includes("invalid email")) {
+  if (
+    msg.includes("unable to validate email") ||
+    msg.includes("invalid email") ||
+    (msg.includes("email") && msg.includes("is invalid"))
+  ) {
     return { field: "email", message: "Enter a valid email address" };
   }
   if (msg.includes("rate limit") || msg.includes("too many")) {
@@ -66,37 +70,73 @@ export async function signUp(email: string, password: string): Promise<void> {
 const EMAIL_ONLY_SECRET = "imperium-email-only-login";
 
 /**
- * Email-only sign-in: any email gets the user logged in. Tries the shared
- * secret against an existing account first; unknown emails get an account
- * created on the fly (which also starts a session, provided "Confirm email"
- * is disabled in the Supabase dashboard). Throws an AuthFieldError on failure.
+ * Email-only sign-in: any email gets the user logged in, always. Three rungs,
+ * each only reached when the one above can't produce a session:
+ *
+ * 1. Password sign-in with the shared secret — returning users go straight in.
+ * 2. Sign-up on the fly — when "Confirm email" is disabled in the Supabase
+ *    dashboard this immediately returns a session.
+ * 3. Device session — when the project requires email confirmation (sign-up
+ *    returns no session, or the account exists but was never confirmed), we
+ *    fall back to an anonymous Supabase session tagged with the claimed email
+ *    in user metadata. The route guard (proxy.ts) accepts these, so the user
+ *    is signed in immediately instead of dead-ending on "check your inbox".
+ *
+ * Throws an AuthFieldError only for genuinely bad input (invalid address) or
+ * when even the fallback fails (e.g. offline).
  */
 export async function signInWithEmailOnly(email: string): Promise<void> {
-  // Returning user from this flow → straight in.
+  // 1. Returning user from this flow → straight in.
   const { error } = await supabase.auth.signInWithPassword({
     email,
     password: EMAIL_ONLY_SECRET,
   });
   if (!error) return;
 
-  // Unknown email → create the account on the fly.
-  const { data, error: signUpError } = await supabase.auth.signUp({
-    email,
-    password: EMAIL_ONLY_SECRET,
+  // 2. Unknown email → try creating the account on the fly. Skip when the
+  // account exists but is unconfirmed — re-signing-up would only fire another
+  // confirmation email (and eventually the project's email rate limit).
+  const unconfirmed = (error.message ?? "")
+    .toLowerCase()
+    .includes("email not confirmed");
+  if (!unconfirmed) {
+    const { data, error: signUpError } = await supabase.auth.signUp({
+      email,
+      password: EMAIL_ONLY_SECRET,
+    });
+    if (!signUpError && data.session) {
+      // Brand-new account hasn't onboarded — clear any stale shortcut cookie.
+      clearOnboardingCompleteCookie();
+      return;
+    }
+    // A malformed address is the user's to fix — surface it. Everything else
+    // (confirmation required, already registered, rate limit) falls through.
+    if (signUpError) {
+      const mapped = mapAuthError(signUpError.message);
+      if (mapped.field === "email" && mapped.message.includes("valid")) {
+        throw mapped;
+      }
+    }
+  }
+
+  // 3. Confirmation wall → device session. Reuse any anonymous session this
+  // browser already has (it may hold onboarding progress); otherwise start one.
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session) {
+    const { error: anonError } = await supabase.auth.signInAnonymously();
+    if (anonError) {
+      throw mapAuthError(anonError.message);
+    }
+  }
+  const { error: metaError } = await supabase.auth.updateUser({
+    data: { claimed_email: email },
   });
-  if (signUpError) {
-    throw mapAuthError(signUpError.message);
+  if (metaError) {
+    throw mapAuthError(metaError.message);
   }
-  if (!data.session) {
-    // "Confirm email" is on in the Supabase project — no session until the
-    // link is clicked, so surface that instead of silently failing.
-    throw {
-      field: "form",
-      message: "Check your inbox to confirm your email, then try again.",
-    } satisfies AuthFieldError;
-  }
-  // Brand-new account hasn't onboarded — clear any stale shortcut cookie.
-  clearOnboardingCompleteCookie();
+  // postSignInDestination syncs the onboarding cookie from the DB truth next.
 }
 
 /**

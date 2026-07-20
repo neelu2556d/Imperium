@@ -72,21 +72,25 @@ export async function proxy(request: NextRequest) {
   //    `useOwner` client hook that decides whether to render the tab).
   const ownerEmail =
     user?.email ?? (typeof claimedEmail === "string" ? claimedEmail : null);
-  if (pathname.startsWith("/business")) {
-    // TEMP diagnostic — remove once the Business owner-gate bug is resolved.
-    console.log("[proxy] /business gate", {
-      pathname,
-      hasUser: Boolean(user),
-      isAnonymous: user?.is_anonymous ?? null,
-      userEmail: user?.email ?? null,
-      claimedEmail: typeof claimedEmail === "string" ? claimedEmail : null,
-      resolvedOwnerEmail: ownerEmail,
-      ownerEnvSet: Boolean((process.env.NEXT_PUBLIC_OWNER_EMAIL ?? "").trim()),
-      isOwner: isOwnerEmail(ownerEmail),
+  if (pathname.startsWith("/business") && !isOwnerEmail(ownerEmail)) {
+    // TEMP diagnostic — encode why the gate rejected into the redirect URL so
+    // it's visible in the address bar. Remove once the bug is resolved.
+    const reason = new URLSearchParams({
+      gate: "business-denied",
+      hasUser: String(Boolean(user)),
+      anon: String(user?.is_anonymous ?? "null"),
+      email: user?.email ?? "null",
+      claimed: typeof claimedEmail === "string" ? claimedEmail : "null",
+      resolved: ownerEmail ?? "null",
+      envSet: String(Boolean((process.env.NEXT_PUBLIC_OWNER_EMAIL ?? "").trim())),
     });
-    if (!isOwnerEmail(ownerEmail)) {
-      return redirectTo(request, "/home", response);
-    }
+    console.log("[proxy] /business gate", reason.toString());
+    const url = request.nextUrl.clone();
+    url.pathname = "/home";
+    url.search = `?${reason.toString()}`;
+    const redirect = NextResponse.redirect(url);
+    response.cookies.getAll().forEach((c) => redirect.cookies.set(c));
+    return redirect;
   }
 
   return response;

@@ -67,8 +67,12 @@ export async function proxy(request: NextRequest) {
 
   // 3. `/business/*` is owner-only. Non-owners (any authed non-owner account)
   //    are sent home. Logged-out/anon users never reach here — they're already
-  //    bounced by the auth wall above.
-  if (pathname.startsWith("/business") && !isOwnerEmail(user?.email)) {
+  //    bounced by the auth wall above. A device session carries the address in
+  //    `claimed_email` rather than `user.email`, so honour both (matching the
+  //    `useOwner` client hook that decides whether to render the tab).
+  const ownerEmail =
+    user?.email ?? (typeof claimedEmail === "string" ? claimedEmail : null);
+  if (pathname.startsWith("/business") && !isOwnerEmail(ownerEmail)) {
     return redirectTo(request, "/home", response);
   }
 

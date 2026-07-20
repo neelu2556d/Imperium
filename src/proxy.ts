@@ -72,8 +72,21 @@ export async function proxy(request: NextRequest) {
   //    `useOwner` client hook that decides whether to render the tab).
   const ownerEmail =
     user?.email ?? (typeof claimedEmail === "string" ? claimedEmail : null);
-  if (pathname.startsWith("/business") && !isOwnerEmail(ownerEmail)) {
-    return redirectTo(request, "/home", response);
+  if (pathname.startsWith("/business")) {
+    // TEMP diagnostic — remove once the Business owner-gate bug is resolved.
+    console.log("[proxy] /business gate", {
+      pathname,
+      hasUser: Boolean(user),
+      isAnonymous: user?.is_anonymous ?? null,
+      userEmail: user?.email ?? null,
+      claimedEmail: typeof claimedEmail === "string" ? claimedEmail : null,
+      resolvedOwnerEmail: ownerEmail,
+      ownerEnvSet: Boolean((process.env.NEXT_PUBLIC_OWNER_EMAIL ?? "").trim()),
+      isOwner: isOwnerEmail(ownerEmail),
+    });
+    if (!isOwnerEmail(ownerEmail)) {
+      return redirectTo(request, "/home", response);
+    }
   }
 
   return response;

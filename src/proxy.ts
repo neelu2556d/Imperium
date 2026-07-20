@@ -70,27 +70,14 @@ export async function proxy(request: NextRequest) {
   //    bounced by the auth wall above. A device session carries the address in
   //    `claimed_email` rather than `user.email`, so honour both (matching the
   //    `useOwner` client hook that decides whether to render the tab).
+  // A device session's `user.email` is an empty string (not null), so `??`
+  // would keep `""` and never fall through to the claimed email — use a truthy
+  // check, matching the `useOwner` client hook so both sides agree.
   const ownerEmail =
-    user?.email ?? (typeof claimedEmail === "string" ? claimedEmail : null);
+    (user?.email || (typeof claimedEmail === "string" ? claimedEmail : null)) ??
+    null;
   if (pathname.startsWith("/business") && !isOwnerEmail(ownerEmail)) {
-    // TEMP diagnostic — encode why the gate rejected into the redirect URL so
-    // it's visible in the address bar. Remove once the bug is resolved.
-    const reason = new URLSearchParams({
-      gate: "business-denied",
-      hasUser: String(Boolean(user)),
-      anon: String(user?.is_anonymous ?? "null"),
-      email: user?.email ?? "null",
-      claimed: typeof claimedEmail === "string" ? claimedEmail : "null",
-      resolved: ownerEmail ?? "null",
-      envSet: String(Boolean((process.env.NEXT_PUBLIC_OWNER_EMAIL ?? "").trim())),
-    });
-    console.log("[proxy] /business gate", reason.toString());
-    const url = request.nextUrl.clone();
-    url.pathname = "/home";
-    url.search = `?${reason.toString()}`;
-    const redirect = NextResponse.redirect(url);
-    response.cookies.getAll().forEach((c) => redirect.cookies.set(c));
-    return redirect;
+    return redirectTo(request, "/home", response);
   }
 
   return response;

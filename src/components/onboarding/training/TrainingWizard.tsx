@@ -49,22 +49,16 @@ export default function TrainingWizard({
   const [saving, setSaving] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const syncUrl = useCallback(
-    (step: number) => {
-      if (typeof window !== "undefined") {
-        // Keep ?redo=1 in the URL so a mid-quiz refresh stays in redo mode.
-        window.history.replaceState(
-          null,
-          "",
-          `/onboarding/training/${step}${redo ? "?redo=1" : ""}`
-        );
-      }
-    },
-    [redo]
-  );
-
   // Hydrate answers from Supabase (source of truth) overlaid with any local,
-  // possibly-unsynced edits, then clamp to the furthest reachable step.
+  // possibly-unsynced edits, then land on the right step: the furthest
+  // unanswered one (so entering at /1 or refreshing resumes real progress),
+  // or the requested step when redoing the quiz from Settings.
+  //
+  // Note: steps are pure client state from here on — the URL deliberately
+  // stays on the entry path. Rewriting the pathname per step (the old
+  // history.replaceState sync) updates usePathname(), which remounts the
+  // page via the pathname-keyed <PageTransition>, resetting the wizard to
+  // step 1 on every continue.
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -79,15 +73,14 @@ export default function TrainingWizard({
       if (cancelled) return;
       writeLocalAnswers(merged);
       setAnswers(merged);
-      const resumeIndex = clamp(initialStep, 1, resumeStep(merged)) - 1;
-      setIndex(resumeIndex);
-      syncUrl(resumeIndex + 1);
+      const target = redo ? initialStep : resumeStep(merged);
+      setIndex(clamp(target, 1, TOTAL_STEPS) - 1);
       setLoaded(true);
     })();
     return () => {
       cancelled = true;
     };
-  }, [initialStep, syncUrl]);
+  }, [initialStep, redo]);
 
   // Top-level guard: render while 'training' is the live step or already
   // completed (so the split screen's back button works). Only a user who
@@ -123,7 +116,6 @@ export default function TrainingWizard({
   const go = (nextIndex: number, dir: Direction) => {
     setTransition({ from: index, dir });
     setIndex(nextIndex);
-    syncUrl(nextIndex + 1);
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => setTransition(null), 280);
   };

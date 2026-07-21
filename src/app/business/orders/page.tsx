@@ -1,10 +1,5 @@
-import BusinessStub from "@/components/business/BusinessStub";
+import OrdersScreen from "@/components/business/orders/OrdersScreen";
 
 export default function OrdersPage() {
-  return (
-    <BusinessStub
-      title="Orders"
-      description="Log orders against a lot with auto-filled rates, per-colour quantities, discounts, GST, and cash-discount terms."
-    />
-  );
+  return <OrdersScreen />;
 }

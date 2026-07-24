@@ -55,7 +55,8 @@ export default function BottomNav() {
   const activeIndex = tabs.findIndex(({ href }) => pathname.startsWith(href));
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-bg/70 backdrop-blur-lg">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-bg/70 backdrop-blur-lg"
+        style={{ transform: 'translateZ(0)' }}>
       <ul className="relative flex">
         {/* mint indicator that slides horizontally to the active tab */}
         {activeIndex >= 0 && (
@@ -76,6 +77,7 @@ export default function BottomNav() {
             <li key={href} className="flex-1">
               <Link
                 href={href}
+                prefetch={true}
                 aria-current={isActive ? "page" : undefined}
                 className="flex flex-col items-center justify-center gap-1 py-2.5 text-[0.68rem] font-medium transition-colors"
                 style={{

@@ -138,39 +138,57 @@ export async function signInWithEmailOnly(email: string): Promise<void> {
   // postSignInDestination syncs the onboarding cookie from the DB truth next.
 }
 
+/** The four onboarding steps that must all be present in completed_steps. */
+const REQUIRED_STEPS = ["about", "training", "macros", "mentor"] as const;
+
+/**
+ * Checks whether the user's completed_steps array contains all four required
+ * onboarding steps. Returns false when the row doesn't exist or on error.
+ */
+async function isOnboardingComplete(): Promise<boolean> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return false;
+
+  const { data, error } = await supabase
+    .from("user_onboarding")
+    .select("completed_steps, is_complete")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (error || !data) return false;
+
+  // Prefer the explicit is_complete flag (set by completeOnboarding), then
+  // fall back to checking completed_steps for all required steps.
+  if (Boolean(data.is_complete)) return true;
+
+  const steps = (data.completed_steps ?? []) as string[];
+  return REQUIRED_STEPS.every((s) => steps.includes(s));
+}
+
 /**
  * Decides where to send a user right after signing in. Returns `/home` when
- * their onboarding row is marked complete, otherwise `/welcome` to (re)start
- * onboarding. Any read failure falls back to `/welcome` — the safer default
- * for an incomplete profile.
+ * their onboarding is complete, otherwise `/onboarding/setup` to resume the
+ * setup checklist. Any read failure falls back to `/onboarding/setup` — the
+ * safer default for an incomplete profile.
  */
 export async function postSignInDestination(): Promise<string> {
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) return "/welcome";
+  if (!user) return "/onboarding/setup";
 
-  const { data, error } = await supabase
-    .from("user_onboarding")
-    .select("is_complete")
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  if (error || !data) return "/welcome";
-
-  // `is_complete` is the authoritative flag (set by completeOnboarding), so
-  // use it directly rather than re-deriving doneness from completed_steps.
-  const allDone = Boolean(data.is_complete);
+  const allDone = await isOnboardingComplete();
 
   // Keep the proxy's fast-path cookie in sync with the DB truth so the guard
-  // doesn't bounce a fully-onboarded user (e.g. signing in on a new device)
-  // back through /welcome.
+  // doesn't bounce a fully-onboarded user (e.g. signing in on a new device).
   if (allDone) {
     setOnboardingCompleteCookie();
   } else {
     clearOnboardingCompleteCookie();
   }
 
-  return allDone ? "/home" : "/welcome";
+  return allDone ? "/home" : "/onboarding/setup";
 }

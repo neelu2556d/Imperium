@@ -4,6 +4,44 @@ import { isOwnerEmail } from "@/lib/owner";
 
 const ONBOARDING_COMPLETE_COOKIE = "onboarding_complete";
 
+/** The four onboarding steps that must all be present in completed_steps. */
+const REQUIRED_STEPS = ["about", "training", "macros", "mentor"] as const;
+
+/**
+ * Checks user_onboarding.completed_steps via Supabase to determine whether
+ * the user has finished all onboarding steps. Returns true when all four
+ * required steps are present, false otherwise (including when the row doesn't
+ * exist yet).
+ */
+async function isOnboardingCompleteFromDb(
+  supabase: ReturnType<typeof createProxyClient>["supabase"]
+): Promise<boolean> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return false;
+
+  const { data } = await supabase
+    .from("user_onboarding")
+    .select("completed_steps")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (!data) return false;
+  const steps = (data.completed_steps ?? []) as string[];
+  return REQUIRED_STEPS.every((s) => steps.includes(s));
+}
+
+/** Sets the onboarding_complete cookie on a response. */
+function setCookie(source: NextResponse): NextResponse {
+  source.cookies.set(ONBOARDING_COMPLETE_COOKIE, "1", {
+    path: "/",
+    maxAge: 31536000,
+    sameSite: "lax",
+  });
+  return source;
+}
+
 /**
  * Route guard (Next.js 16 renamed the `middleware` convention to `proxy`).
  *
@@ -13,7 +51,8 @@ const ONBOARDING_COMPLETE_COOKIE = "onboarding_complete";
  *      users who hit an `/auth/*` page are sent to `/home`.
  *   2. Onboarding shortcut — an authenticated user who hasn't finished
  *      onboarding is funnelled to `/welcome` (cookie fast-path; the client
- *      OnboardingProvider/Guard remain the source of truth).
+ *      OnboardingProvider/Guard remain the source of truth). When the cookie
+ *      is missing, a DB check on completed_steps decides the redirect.
  *   3. Owner wall — `/business/*` is strictly owner-only. Any signed-in user
  *      who isn't the owner (see `lib/owner.ts`) is bounced to `/home`.
  *
@@ -55,12 +94,35 @@ export async function proxy(request: NextRequest) {
     return redirectTo(request, "/auth/signin", response);
   }
 
-  // 2. Authed but onboarding unfinished → send into onboarding via /welcome.
-  //    Skip while already inside the flow to avoid a redirect loop.
-  if (isAuthed && !isWelcome && !isOnboarding) {
-    const onboarded =
+  // 2. Onboarding gate — check profile.completed_steps in Supabase.
+  //    Fast-path via cookie; falls back to a DB check when the cookie is
+  //    absent (new device, cleared cookies, first visit after signup).
+  if (isAuthed) {
+    const cookiePresent =
       request.cookies.get(ONBOARDING_COMPLETE_COOKIE)?.value === "1";
-    if (!onboarded) {
+
+    if (isWelcome) {
+      // User is on /welcome — if their onboarding is actually complete,
+      // skip ahead to /home so they never see the splash screen.
+      if (cookiePresent) {
+        return redirectTo(request, "/home", response);
+      }
+      const complete = await isOnboardingCompleteFromDb(supabase);
+      if (complete) {
+        return redirectTo(request, "/home", setCookie(response));
+      }
+      // Incomplete — let them see /welcome.
+      return response;
+    }
+
+    if (!isOnboarding) {
+      // Protected route outside the onboarding flow.
+      if (cookiePresent) return response;
+      const complete = await isOnboardingCompleteFromDb(supabase);
+      if (complete) {
+        return redirectTo(request, "/home", setCookie(response));
+      }
+      // Incomplete → funnel into onboarding via /welcome.
       return redirectTo(request, "/welcome", response);
     }
   }

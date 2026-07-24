@@ -2,8 +2,10 @@
 
 import {
   useEffect,
+  useMemo,
   useRef,
   useState,
+  memo,
   type KeyboardEvent,
   type ReactNode,
 } from "react";
@@ -15,6 +17,7 @@ import { GearIcon } from "@/components/train/icons";
 import { useReducedMotion } from "@/lib/motion";
 import { useOwner } from "@/lib/useOwner";
 import { formatTime, formatToday, getGreeting } from "@/lib/home/datetime";
+import { fetchTodayTrainingDay, fetchTrainSparkline } from "@/lib/supabase/dashboard";
 import {
   fetchTodayTrainingDay,
   fetchTrainSparkline,
@@ -203,6 +206,7 @@ function Card({
       className={`bento-card ${area}`}
       onClick={open}
       onKeyDown={onKeyDown}
+      onMouseEnter={() => router.prefetch(href)}
     >
       {children}
       <span className="bento-index">{index}</span>
@@ -515,7 +519,7 @@ function smoothPath(xs: number[], ys: number[]): string {
   return d;
 }
 
-function TrainChart({ volumes }: { volumes: number[] }) {
+const TrainChart = memo(function TrainChart({ volumes }: { volumes: number[] }) {
   const reduced = useReducedMotion();
   const chartRef = useMotionPause<HTMLDivElement>();
   const ys = trainYs(volumes);
@@ -545,7 +549,7 @@ function TrainChart({ volumes }: { volumes: number[] }) {
       )}
     </div>
   );
-}
+});
 
 /* Amplitude is tuned for the 2-row-tall card: the stretched
    (preserveAspectRatio="none") svg renders ~3× taller than a single row,
@@ -553,7 +557,7 @@ function TrainChart({ volumes }: { volumes: number[] }) {
 const EKG_PATH =
   "M 0,35 L 55,35 L 68,35 L 78,26 L 88,43.5 L 98,33.5 L 110,35 L 300,35";
 
-function VitalsChart() {
+const VitalsChart = memo(function VitalsChart() {
   const reduced = useReducedMotion();
   const chartRef = useMotionPause<HTMLDivElement>();
 
@@ -593,7 +597,7 @@ const FUEL_WAVE_1 =
 const FUEL_WAVE_2 =
   "M 0,75 C 22.2,63 44.4,87 66.7,75 C 88.9,63 111.1,87 133.3,75 C 155.6,63 177.8,87 200,75";
 
-function FuelChart() {
+const FuelChart = memo(function FuelChart() {
   const reduced = useReducedMotion();
   const chartRef = useMotionPause<HTMLDivElement>();
 
@@ -625,7 +629,7 @@ function FuelChart() {
       )}
     </div>
   );
-}
+});
 
 const CANDLES = [
   { x: 40, wickTop: 20, wickBottom: 55, bodyY: 45, bodyH: 24 },
@@ -636,7 +640,7 @@ const CANDLES = [
 
 const CANDLE_GREEN = "#4ade80";
 
-function BusinessChart() {
+const BusinessChart = memo(function BusinessChart() {
   const reduced = useReducedMotion();
   const chartRef = useMotionPause<HTMLDivElement>();
 

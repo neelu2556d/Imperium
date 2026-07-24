@@ -29,11 +29,12 @@ const MONTH_NAMES = [
   "DECEMBER",
 ] as const;
 
-/** "Good morning" (<12h), "Good afternoon" (<18h), else "Good evening". */
+/** "Good morning" (5–11), "Good afternoon" (12–16), "Good evening" (17–21), else "It's late night". */
 export function getGreeting(hour: number): string {
-  if (hour < 12) return "Good morning";
-  if (hour < 18) return "Good afternoon";
-  return "Good evening";
+  if (hour >= 5 && hour < 12) return "Good morning";
+  if (hour >= 12 && hour < 17) return "Good afternoon";
+  if (hour >= 17 && hour < 22) return "Good evening";
+  return "It's late night";
 }
 
 /** Formats a date as "WEDNESDAY, JUNE 24" for the mono sub-header. */

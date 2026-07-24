@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase/client";
 import { getOnboardingState } from "@/lib/supabase/onboarding";
 import { getFirstName } from "@/lib/supabase/profile";
 import { setOnboardingCompleteCookie } from "@/lib/onboarding/cookie";
@@ -21,29 +22,54 @@ export default function WelcomeScreen() {
   useEffect(() => {
     let cancelled = false;
 
-    Promise.all([getOnboardingState(), getFirstName()])
-      .then(([onboarding, firstName]) => {
+    // Silently check auth state first. If signed in, decide where to go
+    // based on onboarding completeness — never show the splash to a returning
+    // user.
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (cancelled) return;
+
+      if (!session?.user) {
+        // Not signed in — fall through to the normal splash flow below.
+        return;
+      }
+
+      // Signed in — check onboarding state to decide destination.
+      return getOnboardingState().then((onboarding) => {
         if (cancelled) return;
         if (onboarding.isComplete) {
-          // Sync the proxy's fast-path cookie first, or it would bounce
-          // /home straight back here in a redirect loop.
           setOnboardingCompleteCookie();
           router.replace("/home");
           return;
         }
-        setLoadState({
-          status: "ready",
-          firstName,
-          currentStep: onboarding.currentStep,
-        });
-      })
-      .catch((error: unknown) => {
-        if (cancelled) return;
-        setLoadState({
-          status: "error",
-          error: error instanceof Error ? error.message : "Unknown error",
-        });
+        // Signed in but onboarding incomplete — send to setup checklist.
+        router.replace("/onboarding/setup");
       });
+    }).then(() => {
+      // If we've already redirected, early return.
+      if (cancelled) return;
+
+      // Normal splash path: fetch onboarding state + name for the greeting.
+      return Promise.all([getOnboardingState(), getFirstName()])
+        .then(([onboarding, firstName]) => {
+          if (cancelled) return;
+          if (onboarding.isComplete) {
+            setOnboardingCompleteCookie();
+            router.replace("/home");
+            return;
+          }
+          setLoadState({
+            status: "ready",
+            firstName,
+            currentStep: onboarding.currentStep,
+          });
+        });
+    }).catch((error: unknown) => {
+      if (cancelled) return;
+      setLoadState({
+        status: "error",
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+    });
 
     return () => {
       cancelled = true;

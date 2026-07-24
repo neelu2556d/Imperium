@@ -43,7 +43,7 @@ export default function SignUpScreen() {
     setSubmitting(true);
     try {
       await signUp(email.trim(), password);
-      router.replace("/welcome");
+      router.replace("/onboarding/setup");
       router.refresh();
     } catch (err) {
       const authErr = err as AuthFieldError;

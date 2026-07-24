@@ -296,7 +296,8 @@ export async function fetchSalesRows(): Promise<SalesRow[]> {
       .order("order_date", { ascending: false })
       .order("created_at", { ascending: false });
     if (error) throw error;
-    return (data ?? []).map(mapSalesRow);
+    const rows = (data ?? []) as unknown as Array<Record<string, unknown>>;
+    return rows.map((r) => mapSalesRow(r));
   } catch {
     return [];
   }

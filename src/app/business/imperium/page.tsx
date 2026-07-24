@@ -1,10 +1,5 @@
-import BusinessStub from "@/components/business/BusinessStub";
+import ImperiumChat from "@/components/business/ImperiumChat";
 
 export default function BusinessImperiumPage() {
-  return (
-    <BusinessStub
-      title="Imperium"
-      description="Your business mentor — a full conversation thread for briefings, pre-visit prep, and end-of-day reviews, grounded in your real numbers."
-    />
-  );
+  return <ImperiumChat />;
 }

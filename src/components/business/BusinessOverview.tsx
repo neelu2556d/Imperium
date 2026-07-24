@@ -165,6 +165,26 @@ function BriefingCard({ initial }: { initial: string | null }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Auto-generate morning briefing on mount if none exists for today.
+  useEffect(() => {
+    if (initial || busy) return;
+    let cancelled = false;
+    setBusy(true);
+    generateBriefing()
+      .then((reply) => {
+        if (!cancelled) setText(reply);
+      })
+      .catch(() => {
+        /* non-fatal — user can tap Generate manually */
+      })
+      .finally(() => {
+        if (!cancelled) setBusy(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [initial, busy]);
+
   const onGenerate = async () => {
     setBusy(true);
     setError(null);

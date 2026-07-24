@@ -10,7 +10,6 @@ import {
   metres,
   aggregateByDay,
   filterByPeriod,
-  periodBounds,
 } from "./reportUtils";
 
 interface Props {
@@ -40,7 +39,7 @@ function StatCard({
       className="rounded-xl border p-4"
       style={{
         borderColor: accent ? "var(--accent)" : "var(--color-border)",
-        background: accent ? "var(--accent-muted)" : "var(--bg-elevated)",
+        background: accent ? "var(--accent-muted)" : "var(--color-bg-elevated)",
       }}
     >
       <p className="text-[0.72rem] uppercase tracking-wide text-muted">
@@ -48,7 +47,7 @@ function StatCard({
       </p>
       <p
         className="mt-1 text-xl font-semibold tabular-nums"
-        style={{ color: accent ? "var(--accent)" : "var(--fg)" }}
+        style={{ color: accent ? "var(--accent)" : "var(--color-fg)" }}
       >
         {value}
       </p>
@@ -167,7 +166,6 @@ export default function ReportDeepAnalysis({
     [rows, lots, cursor, period]
   );
 
-  const { start, end } = periodBounds(cursor, period);
   const dailyData = useMemo(() => {
     const filtered = filterByPeriod(rows, cursor, period);
     const aggregated = aggregateByDay(filtered, cursor, period);
@@ -232,8 +230,8 @@ export default function ReportDeepAnalysis({
                 </div>
               )}
               {data.slowestClearingLot && (
-                <div className="rounded-lg border border-orange-500/20 bg-orange-500/5 p-3">
-                  <p className="text-[0.68rem] uppercase text-orange-500">
+                <div className="rounded-lg border border-[var(--color-amber)]/20 p-3" style={{ background: "rgba(245, 158, 11, 0.05)" }}>
+                  <p className="text-[0.68rem] uppercase" style={{ color: "var(--color-amber)" }}>
                     Slowest Clearing
                   </p>
                   <p className="mt-1 text-sm font-medium text-fg">

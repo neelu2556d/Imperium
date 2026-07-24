@@ -65,8 +65,8 @@ export default function BottomNav() {
             style={{
               width: `${100 / tabs.length}%`,
               transform: `translateX(${activeIndex * 100}%)`,
-              background: "var(--color-mint)",
-              boxShadow: "0 0 8px var(--color-mint-glow)",
+              background: "var(--accent)",
+              boxShadow: "0 0 8px var(--accent-glow)",
             }}
           />
         )}
@@ -80,7 +80,7 @@ export default function BottomNav() {
                 className="flex flex-col items-center justify-center gap-1 py-2.5 text-[0.68rem] font-medium transition-colors"
                 style={{
                   color: isActive
-                    ? "var(--color-mint)"
+                    ? "var(--accent)"
                     : "var(--color-muted)",
                 }}
               >

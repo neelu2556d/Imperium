@@ -147,7 +147,7 @@ function KpiCard({
       </p>
       <p
         className="mt-2 text-2xl font-semibold tabular-nums md:text-3xl"
-        style={{ color: tone === "warn" ? "#f87171" : "var(--accent)" }}
+        style={{ color: tone === "warn" ? "var(--color-danger)" : "var(--accent)" }}
       >
         {value}
       </p>
@@ -220,7 +220,7 @@ function BriefingCard({ initial }: { initial: string | null }) {
       </div>
 
       {error ? (
-        <p className="mt-3 text-sm" style={{ color: "#f87171" }}>
+        <p className="mt-3 text-sm" style={{ color: "var(--color-danger)" }}>
           {error}
         </p>
       ) : text ? (
@@ -277,7 +277,7 @@ function OverdueSection({
               </div>
               <p
                 className="shrink-0 text-sm font-semibold tabular-nums"
-                style={{ color: "#f87171" }}
+                style={{ color: "var(--color-danger)" }}
               >
                 {rupees(e.amount)}
               </p>

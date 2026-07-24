@@ -483,7 +483,7 @@ export default function ImperiumChat() {
           disabled={!input.trim() || sending}
           aria-label="Send message"
           className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-opacity disabled:opacity-40"
-          style={{ background: "var(--color-mint)", color: "var(--color-mint-ink)" }}
+          style={{ background: "var(--accent)", color: "var(--accent-ink)" }}
         >
           <SendIcon />
         </button>

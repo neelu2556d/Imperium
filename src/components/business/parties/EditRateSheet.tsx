@@ -149,7 +149,7 @@ export default function EditRateSheet({
           </div>
 
           {error && (
-            <p className="mt-4 text-sm" style={{ color: "#f87171" }}>
+            <p className="mt-4 text-sm" style={{ color: "var(--color-danger)" }}>
               {error}
             </p>
           )}

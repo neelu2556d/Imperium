@@ -18,7 +18,7 @@ export const STATUS_LABELS: Record<LotStatus, string> = {
 export function statusColor(status: LotStatus): string {
   switch (status) {
     case "low_stock":
-      return "#f87171";
+      return "var(--color-danger)";
     case "dead_stock":
       return "var(--color-amber)";
     case "cleared":
@@ -104,7 +104,7 @@ export default function LotCard({
         {lot.status === "low_stock" && !showSold ? (
           <span
             className="mono shrink-0 rounded-full border px-2.5 py-1 text-[0.6rem] uppercase tracking-[0.12em]"
-            style={{ color: "#f87171", borderColor: "#f87171" }}
+            style={{ color: "var(--color-danger)", borderColor: "var(--color-danger)" }}
           >
             Low
           </span>
@@ -125,7 +125,7 @@ export default function LotCard({
             <p
               className="mt-1 text-sm font-semibold tabular-nums"
               style={{
-                color: remaining < lot.threshold ? "#f87171" : "var(--accent)",
+                color: remaining < lot.threshold ? "var(--color-danger)" : "var(--accent)",
               }}
             >
               {metres(remaining)}

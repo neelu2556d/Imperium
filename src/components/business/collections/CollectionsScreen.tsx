@@ -9,7 +9,12 @@ import {
   shortDate,
   statusColor,
 } from "@/components/business/orders/orderFormat";
-import type { CollectionRow, PartyLedger, PaymentStatus } from "@/lib/supabase/orders";
+import {
+  createPayment,
+  type CollectionRow,
+  type PartyLedger,
+  type PaymentStatus,
+} from "@/lib/supabase/orders";
 
 type Filter = "all" | "overdue" | "due_week" | "pending" | "paid";
 
@@ -433,19 +438,15 @@ function LogPaymentSheet({
 
     setSaving(true);
     try {
-      await fetch("/api/collection-payment", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          orderId: order.id,
-          amountReceived: Number(amountReceived),
-          paymentDate,
-          cdApplied,
-          notes,
-        }),
+      await createPayment({
+        orderId: order.id,
+        amountReceived: Number(amountReceived),
+        paymentDate,
+        cdApplied,
+        notes: notes || null,
       });
       onSave();
-    } catch (err) {
+    } catch {
       alert("Could not save payment");
     } finally {
       setSaving(false);
@@ -571,7 +572,8 @@ function LogPaymentSheet({
         type="button"
         onClick={handleSave}
         disabled={saving}
-        className="mt-6 w-full rounded-lg bg-mint px-4 py-3 text-[0.78rem] font-semibold text-white shadow-lg shadow-mint/20 hover:bg-mint/90 disabled:opacity-50"
+        className="mt-6 w-full rounded-lg px-4 py-3 text-[0.78rem] font-semibold shadow-lg disabled:opacity-50"
+        style={{ background: "var(--accent)", color: "var(--accent-ink)", boxShadow: "0 4px 12px rgba(0,0,0,0.15)" }}
       >
         {saving ? "Saving..." : "Confirm Payment"}
       </button>

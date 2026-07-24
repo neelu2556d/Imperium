@@ -34,7 +34,7 @@ function paymentColor(status: LotOrder["paymentStatus"]): string {
     case "paid":
       return "var(--accent)";
     case "overdue":
-      return "#f87171";
+      return "var(--color-danger)";
     case "partial":
       return "var(--color-amber)";
     default:
@@ -242,7 +242,7 @@ export default function LotDetailScreen({ lotId }: { lotId: string }) {
               label="Gross profit"
               value={rupees(profitability.grossProfit)}
               color={
-                profitability.grossProfit >= 0 ? "var(--accent)" : "#f87171"
+                profitability.grossProfit >= 0 ? "var(--accent)" : "var(--color-danger)"
               }
             />
             <ProfitRow
@@ -254,7 +254,7 @@ export default function LotDetailScreen({ lotId }: { lotId: string }) {
               }
               color={
                 profitability.marginPct != null && profitability.marginPct < 0
-                  ? "#f87171"
+                  ? "var(--color-danger)"
                   : undefined
               }
             />

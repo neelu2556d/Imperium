@@ -639,3 +639,220 @@ export async function upsertRateCard(
     { onConflict: "user_id,party_id,item_id" }
   );
 }
+
+// ============================================================================
+// Collections - Payment tracking
+// ============================================================================
+
+/** One collection row (outstanding order) for the Collections list. */
+export interface CollectionRow {
+  id: string;
+  partyName: string;
+  itemName: string;
+  dNo: string;
+  orderDate: string;
+  netPayable: number;
+  amountReceived: number;
+  balance: number;
+  paymentDays: number;
+  dueDate: string;
+  status: PaymentStatus;
+}
+
+/** One party's ledger summary for the "By Party" section. */
+export interface PartyLedger {
+  partyId: string;
+  partyName: string;
+  totalInvoiced: number;
+  totalReceived: number;
+  outstanding: number;
+}
+
+/** Input for logging a payment. */
+export interface LogPaymentInput {
+  orderId: string;
+  amountReceived: number;
+  paymentDate: string;
+  cdApplied: boolean;
+  notes: string | null;
+}
+
+/** Result of logging a payment. */
+export interface LogPaymentResult {
+  paymentId: string;
+  newStatus: "paid" | "partial" | "pending";
+  amountReceived: number;
+}
+
+// ---------------------------------------------------------------------------
+// Readers
+// ---------------------------------------------------------------------------
+
+/** Every outstanding order (pending/partial/overdue), sorted by due date. */
+export async function fetchCollectionsRows(): Promise<CollectionRow[]> {
+  try {
+    await refreshOverdueOrders();
+    const userId = await ensureAnonymousSession();
+    const { data, error } = await supabase
+      .from("orders")
+      .select(
+        "id, order_date, party_name, item_name, d_no, net_payable, amount_received, payment_days, due_date, payment_status"
+      )
+      .eq("user_id", userId)
+      .in("payment_status", ["pending", "partial", "overdue"])
+      .order("due_date", { ascending: true })
+      .order("order_date", { ascending: true });
+    if (error) throw error;
+
+    const now = new Date();
+    const rows = (data ?? []) as unknown as Array<Record<string, unknown>>;
+    return rows.map((r) => {
+      const netPayable = num(r.net_payable);
+      const amountReceived = num(r.amount_received);
+      const balance = netPayable - amountReceived;
+      return {
+        id: String(r.id),
+        partyName: String(r.party_name ?? "Unknown party"),
+        itemName: String(r.item_name ?? "—"),
+        dNo: String(r.d_no ?? ""),
+        orderDate: String(r.order_date ?? ""),
+        netPayable,
+        amountReceived,
+        balance,
+        paymentDays: num(r.payment_days),
+        dueDate: String(r.due_date ?? ""),
+        status: String(r.payment_status ?? "pending") as PaymentStatus,
+      };
+    });
+  } catch {
+    return [];
+  }
+}
+
+/** Ledger summary per party for the "By Party" section at the bottom. */
+export async function fetchPartyLedgers(): Promise<PartyLedger[]> {
+  try {
+    const userId = await ensureAnonymousSession();
+    const { data, error } = await supabase
+      .from("orders")
+      .select(
+        "party_id, party_name, net_payable, amount_received, payment_status"
+      )
+      .eq("user_id", userId)
+      .in("payment_status", ["pending", "partial", "overdue"]);
+    if (error) throw error;
+
+    const ledgers = new Map<string, PartyLedger>();
+    const rows = (data ?? []) as unknown as Array<Record<string, unknown>>;
+    for (const r of rows) {
+      const partyId = String(r.party_id ?? "");
+      if (!partyId) continue;
+
+      const netPayable = num(r.net_payable);
+      const amountReceived = num(r.amount_received);
+      const outstanding = netPayable - amountReceived;
+
+      if (!ledgers.has(partyId)) {
+        ledgers.set(partyId, {
+          partyId,
+          partyName: String(r.party_name ?? "Unknown party"),
+          totalInvoiced: 0,
+          totalReceived: 0,
+          outstanding: 0,
+        });
+      }
+
+      const ledger = ledgers.get(partyId)!;
+      ledger.totalInvoiced += netPayable;
+      ledger.totalReceived += amountReceived;
+      ledger.outstanding += outstanding;
+    }
+
+    return [...ledgers.values()].sort((a, b) =>
+      b.outstanding - a.outstanding
+    );
+  } catch {
+    return [];
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Writers
+// ---------------------------------------------------------------------------
+
+/** Log a payment against an order. */
+export async function createPayment(
+  input: LogPaymentInput
+): Promise<LogPaymentResult> {
+  const userId = await ensureAnonymousSession();
+  const now = new Date();
+
+  // Fetch current order data
+  const { data: orderData, error: orderError } = await supabase
+    .from("orders")
+    .select("net_payable, amount_received, cd_percent")
+    .eq("user_id", userId)
+    .eq("id", input.orderId)
+    .maybeSingle();
+  if (orderError || !orderData) {
+    throw orderError ?? new Error("Order not found");
+  }
+
+  const netPayable = num(orderData.net_payable);
+  const currentReceived = num(orderData.amount_received);
+  const cdPercent = num(orderData.cd_percent);
+  const newReceived = currentReceived + input.amountReceived;
+  const balance = netPayable - newReceived;
+
+  // Calculate CD deduction if applied
+  let cdDeduction = 0;
+  if (input.cdApplied && cdPercent > 0) {
+    cdDeduction = input.amountReceived * (cdPercent / 100);
+  }
+  const netReceivedAfterCD = input.amountReceived - cdDeduction;
+
+  // Determine new status
+  let newStatus: "paid" | "partial" | "pending" = "pending";
+  if (balance <= 0) {
+    newStatus = "paid";
+  } else if (newReceived > 0) {
+    newStatus = "partial";
+  }
+
+  // Update the order
+  const { error: updateError } = await supabase
+    .from("orders")
+    .update({
+      amount_received: newReceived,
+      payment_status: newStatus,
+      updated_at: now.toISOString(),
+    })
+    .eq("user_id", userId)
+    .eq("id", input.orderId);
+  if (updateError) throw updateError;
+
+  // Insert payment record
+  const { data: paymentData, error: paymentError } = await supabase
+    .from("payments")
+    .insert({
+      user_id: userId,
+      order_id: input.orderId,
+      party_id: orderData.party_id,
+      party_name: orderData.party_name,
+      amount_received: input.amountReceived,
+      payment_date: input.paymentDate,
+      cd_applied: input.cdApplied,
+      notes: input.notes,
+    })
+    .select("id")
+    .single();
+  if (paymentError || !paymentData) {
+    throw paymentError ?? new Error("Could not record payment");
+  }
+
+  return {
+    paymentId: String(paymentData.id),
+    newStatus,
+    amountReceived: newReceived,
+  };
+}

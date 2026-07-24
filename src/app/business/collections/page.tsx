@@ -1,10 +1,5 @@
-import BusinessStub from "@/components/business/BusinessStub";
+import CollectionsScreen from "@/components/business/collections(CollectionsScreen";
 
 export default function CollectionsPage() {
-  return (
-    <BusinessStub
-      title="Collections"
-      description="Record payments against invoices, apply cash discounts, and keep on top of overdue receivables."
-    />
-  );
+  return <CollectionsScreen />;
 }

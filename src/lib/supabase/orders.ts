@@ -51,6 +51,18 @@ export interface OrderRow {
   status: PaymentStatus;
 }
 
+/** One row of the Sales Register — an OrderRow plus the extra columns the
+ *  register table renders (per-component metres, GST, credit term, due date).
+ *  Extends OrderRow so it can be passed straight to the OrderDetailSheet. */
+export interface SalesRow extends OrderRow {
+  topTotalMetres: number;
+  bottomTotalMetres: number;
+  dupattaTotalMetres: number;
+  gstAmount: number;
+  paymentDays: number;
+  dueDate: string;
+}
+
 /** Full pricing breakdown for the order detail sheet. */
 export interface OrderDetail extends OrderRow {
   topPerColour: number;
@@ -246,6 +258,45 @@ export async function fetchAllOrders(): Promise<OrderRow[]> {
       .order("created_at", { ascending: false });
     if (error) throw error;
     return (data ?? []).map(mapOrderRow);
+  } catch {
+    return [];
+  }
+}
+
+const SALES_ROW_COLUMNS =
+  "id, order_date, party_name, item_name, d_no, " +
+  "top_total_metres, bottom_total_metres, dupatta_total_metres, total_metres, " +
+  "total_amount, gst_amount, net_payable, payment_days, due_date, payment_status";
+
+function mapSalesRow(r: Record<string, unknown>): SalesRow {
+  return {
+    ...mapOrderRow(r),
+    topTotalMetres: num(r.top_total_metres),
+    bottomTotalMetres: num(r.bottom_total_metres),
+    dupattaTotalMetres: num(r.dupatta_total_metres),
+    gstAmount: num(r.gst_amount),
+    paymentDays: num(r.payment_days),
+    dueDate: String(r.due_date ?? ""),
+  };
+}
+
+/**
+ * Every order as a Sales Register row, newest first. Like {@link fetchAllOrders}
+ * this refreshes overdue statuses first and pulls the whole (single-wholesaler)
+ * table in one query; the register does its date filtering client-side.
+ */
+export async function fetchSalesRows(): Promise<SalesRow[]> {
+  try {
+    await refreshOverdueOrders();
+    const userId = await ensureAnonymousSession();
+    const { data, error } = await supabase
+      .from("orders")
+      .select(SALES_ROW_COLUMNS)
+      .eq("user_id", userId)
+      .order("order_date", { ascending: false })
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    return (data ?? []).map(mapSalesRow);
   } catch {
     return [];
   }

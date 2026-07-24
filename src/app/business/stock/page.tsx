@@ -1,10 +1,5 @@
-import BusinessStub from "@/components/business/BusinessStub";
+import StockScreen from "@/components/business/stock/StockScreen";
 
 export default function StockPage() {
-  return (
-    <BusinessStub
-      title="Stock"
-      description="See remaining metres per lot and component, low-stock alerts, and dead stock that needs moving."
-    />
-  );
+  return <StockScreen />;
 }

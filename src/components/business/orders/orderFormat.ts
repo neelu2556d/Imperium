@@ -1,4 +1,5 @@
-export type { PaymentStatus } from "@/lib/supabase/orders";
+import type { PaymentStatus } from "@/lib/supabase/orders";
+export { type PaymentStatus };
 
 /** ₹ with Indian digit grouping; whole rupees (paise aren't tracked here). */
 export const rupees = (n: number): string =>

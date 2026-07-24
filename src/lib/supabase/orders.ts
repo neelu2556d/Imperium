@@ -790,7 +790,7 @@ export async function createPayment(
   // Fetch current order data
   const { data: orderData, error: orderError } = await supabase
     .from("orders")
-    .select("net_payable, amount_received, cd_percent")
+    .select("net_payable, amount_received, cd_percent, party_id, party_name")
     .eq("user_id", userId)
     .eq("id", input.orderId)
     .maybeSingle();

@@ -1,10 +1,5 @@
-import BusinessStub from "@/components/business/BusinessStub";
+import PartiesScreen from "@/components/business/parties/PartiesScreen";
 
 export default function PartiesPage() {
-  return (
-    <BusinessStub
-      title="Parties"
-      description="Manage your party master — areas, cities, payment terms, cash-discount and GST preferences, and saved rate cards."
-    />
-  );
+  return <PartiesScreen />;
 }

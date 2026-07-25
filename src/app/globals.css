@@ -1778,15 +1778,15 @@ select,
   }
 }
 .bento-candle-wick {
-  stroke: rgba(74, 222, 128, 0.85);
+  stroke: rgb(var(--accent-rgb) / 0.75);
   stroke-width: 1.35;
   stroke-linecap: round;
 }
 .bento-candle-body {
-  fill: rgba(74, 222, 128, 0.16);
-  stroke: rgba(74, 222, 128, 0.85);
+  fill: rgb(var(--accent-rgb) / 0.16);
+  stroke: rgb(var(--accent-rgb) / 0.75);
   stroke-width: 1.35;
-  filter: drop-shadow(0 0 4px rgba(74, 222, 128, 0.28));
+  filter: drop-shadow(0 0 4px rgb(var(--accent-rgb) / 0.28));
 }
 
 /* offscreen: IntersectionObserver toggles this on the card/chart wrapper */

@@ -5,7 +5,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "Imperium",
     short_name: "Imperium",
     description: "Your personal training, nutrition, and vitals companion.",
-    start_url: "/",
+    start_url: "/home",
     display: "standalone",
     background_color: "#000000",
     theme_color: "#000000",
@@ -13,6 +13,11 @@ export default function manifest(): MetadataRoute.Manifest {
       {
         src: "/icon",
         sizes: "512x512",
+        type: "image/png",
+      },
+      {
+        src: "/icon?size=192",
+        sizes: "192x192",
         type: "image/png",
       },
       {

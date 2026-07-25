@@ -150,7 +150,7 @@ export default function HomeDashboard() {
             index="05"
             label="Business"
             ariaLabel="Open Business"
-            icon={<TrendingUp size={16} color="#4ade80" />}
+            icon={<TrendingUp size={16} color="var(--accent)" />}
           >
             <BusinessChart />
           </Card>
@@ -637,7 +637,7 @@ const CANDLES = [
   { x: 200, wickTop: 5, wickBottom: 45, bodyY: 10, bodyH: 30 },
 ];
 
-const CANDLE_GREEN = "#4ade80";
+const CANDLE_GREEN = "var(--accent)";
 
 const BusinessChart = memo(function BusinessChart() {
   const reduced = useReducedMotion();

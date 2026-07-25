@@ -24,7 +24,6 @@ export default function SignInScreen() {
   const [success, setSuccess] = useState(false);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    console.log("HANDLE SUBMIT CALLED");
     event.preventDefault();
     if (submitting) return;
 
@@ -41,34 +40,24 @@ export default function SignInScreen() {
     setErrors({});
     setSubmitting(true);
     try {
-  console.log("1. Starting sign in");
+      await signInWithEmailOnly(trimmed);
 
-  await signInWithEmailOnly(trimmed);
+      setSuccess(true);
+      pushToast("Successfully logged in");
 
-  console.log("2. signInWithEmailOnly() finished");
+      const destination = await postSignInDestination();
 
-  setSuccess(true);
-  pushToast("Successfully logged in");
-
-  console.log("3. Getting destination");
-
-  const destination = await postSignInDestination();
-
-  console.log("4. Destination =", destination);
-
-  router.replace(destination);
-  router.refresh();
-} catch (err) {
-  console.error("SIGN IN ERROR:", err);
-
-  const authErr = err as AuthFieldError;
-  setErrors(
-    authErr.field === "email"
-      ? { email: authErr.message }
-      : { form: authErr.message }
-  );
-  setSubmitting(false);
-}
+      router.replace(destination);
+      router.refresh();
+    } catch (err) {
+      const authErr = err as AuthFieldError;
+      setErrors(
+        authErr.field === "email"
+          ? { email: authErr.message }
+          : { form: authErr.message }
+      );
+      setSubmitting(false);
+    }
   };
 
   return (

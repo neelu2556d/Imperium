@@ -98,13 +98,13 @@ export async function signInWithEmailOnly(email: string): Promise<void> {
     password: EMAIL_ONLY_SECRET,
   });
   if (!error) {
-    // Transfer onboarding progress from the anonymous session if one existed.
+    // Transfer ALL user data from the anonymous session if one existed.
     if (anonUserId) {
-      const { error: transferError } = await supabase.rpc("transfer_onboarding", {
+      const { error: transferError } = await supabase.rpc("transfer_all_user_data", {
         p_email: email,
       });
       if (transferError) {
-        console.warn("transfer_onboarding failed:", transferError.message);
+        console.warn("transfer_all_user_data failed:", transferError.message);
       }
     }
     return;
@@ -124,16 +124,16 @@ export async function signInWithEmailOnly(email: string): Promise<void> {
     if (!signUpError && data.session) {
       // Brand-new account hasn't onboarded — clear any stale shortcut cookie.
       clearOnboardingCompleteCookie();
-      // Transfer onboarding progress from the anonymous session if one existed.
+      // Transfer ALL user data from the anonymous session if one existed.
       if (anonUserId) {
         const { error: transferError } = await supabase.rpc(
-          "transfer_onboarding",
+          "transfer_all_user_data",
           {
             p_email: email,
           },
         );
         if (transferError) {
-          console.warn("transfer_onboarding failed:", transferError.message);
+          console.warn("transfer_all_user_data failed:", transferError.message);
         }
       }
       return;
@@ -223,15 +223,15 @@ export async function postSignInDestination(): Promise<string> {
 
   let allDone = await isOnboardingComplete();
 
-  // If onboarding isn't complete for this user id, try transferring the row
+  // If onboarding isn't complete for this user id, try transferring all data
   // from the anonymous session that claimed this email (the email-only flow
   // creates onboarding progress under an anonymous user id).
   if (!allDone && user.email) {
-    const { error: transferError } = await supabase.rpc("transfer_onboarding", {
+    const { error: transferError } = await supabase.rpc("transfer_all_user_data", {
       p_email: user.email,
     });
     if (transferError) {
-      console.warn("transfer_onboarding failed:", transferError.message);
+      console.warn("transfer_all_user_data failed:", transferError.message);
     }
     allDone = await isOnboardingComplete();
   }

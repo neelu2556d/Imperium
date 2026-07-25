@@ -4,14 +4,10 @@ import { isOwnerEmail } from "@/lib/owner";
 
 const ONBOARDING_COMPLETE_COOKIE = "onboarding_complete";
 
-/** The four onboarding steps that must all be present in completed_steps. */
-const REQUIRED_STEPS = ["about", "training", "macros", "mentor"] as const;
-
 /**
- * Checks user_onboarding.completed_steps via Supabase to determine whether
- * the user has finished all onboarding steps. Returns true when all four
- * required steps are present, false otherwise (including when the row doesn't
- * exist yet).
+ * Checks user_onboarding via Supabase to determine whether the user has
+ * finished onboarding. Prefers the explicit is_complete flag, then falls back
+ * to checking completed_steps for all required steps.
  */
 async function isOnboardingCompleteFromDb(
   supabase: ReturnType<typeof createProxyClient>["supabase"]
@@ -34,7 +30,9 @@ async function isOnboardingCompleteFromDb(
 
   // Fallback: check that all required steps are present.
   const steps = (data.completed_steps ?? []) as string[];
-  return REQUIRED_STEPS.every((s) => steps.includes(s));
+  return ["about", "training", "macros", "mentor"].every((s) =>
+    steps.includes(s)
+  );
 }
 
 /** Sets the onboarding_complete cookie on a response. */
@@ -123,20 +121,9 @@ export async function proxy(request: NextRequest) {
     if (!isOnboarding) {
       // Protected route outside the onboarding flow.
       if (cookiePresent) return response;
-      let complete = await isOnboardingCompleteFromDb(supabase);
+      const complete = await isOnboardingCompleteFromDb(supabase);
       if (complete) {
         return redirectTo(request, "/home", setCookie(response));
-      }
-      // The onboarding row may live under a previous anonymous user id
-      // (email-only flow). Attempt to transfer it before giving up.
-      const email = (user?.user_metadata as Record<string, unknown> | undefined)
-        ?.claimed_email;
-      if (typeof email === "string") {
-        await supabase.rpc("transfer_onboarding", { p_email: email });
-        complete = await isOnboardingCompleteFromDb(supabase);
-        if (complete) {
-          return redirectTo(request, "/home", setCookie(response));
-        }
       }
       // Incomplete → funnel into onboarding via /welcome.
       return redirectTo(request, "/welcome", response);

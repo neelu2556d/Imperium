@@ -85,12 +85,27 @@ const EMAIL_ONLY_SECRET = "imperium-email-only-login";
  * when even the fallback fails (e.g. offline).
  */
 export async function signInWithEmailOnly(email: string): Promise<void> {
+  // Capture the current (anonymous) user id BEFORE signing in — we'll need it
+  // to transfer any onboarding progress to the real account.
+  const {
+    data: { session: anonSession },
+  } = await supabase.auth.getSession();
+  const anonUserId = anonSession?.user?.id ?? null;
+
   // 1. Returning user from this flow → straight in.
   const { error } = await supabase.auth.signInWithPassword({
     email,
     password: EMAIL_ONLY_SECRET,
   });
-  if (!error) return;
+  if (!error) {
+    // Transfer onboarding progress from the anonymous session if one existed.
+    if (anonUserId) {
+      await supabase.rpc("transfer_onboarding", {
+        p_anon_user_id: anonUserId,
+      });
+    }
+    return;
+  }
 
   // 2. Unknown email → try creating the account on the fly. Skip when the
   // account exists but is unconfirmed — re-signing-up would only fire another
@@ -106,6 +121,12 @@ export async function signInWithEmailOnly(email: string): Promise<void> {
     if (!signUpError && data.session) {
       // Brand-new account hasn't onboarded — clear any stale shortcut cookie.
       clearOnboardingCompleteCookie();
+      // Transfer onboarding progress from the anonymous session if one existed.
+      if (anonUserId) {
+        await supabase.rpc("transfer_onboarding", {
+          p_anon_user_id: anonUserId,
+        });
+      }
       return;
     }
     // A malformed address is the user's to fix — surface it. Everything else
@@ -184,16 +205,7 @@ export async function postSignInDestination(): Promise<string> {
 
   if (!user) return "/onboarding/setup";
 
-  let allDone = await isOnboardingComplete();
-
-  // If onboarding isn't complete for this user id, try transferring the row
-  // from the anonymous session that claimed this email (the email-only flow
-  // creates onboarding progress under an anonymous user id).
-  if (!allDone && user.email) {
-    await supabase.rpc("transfer_onboarding", { p_email: user.email });
-    // Re-check after the transfer.
-    allDone = await isOnboardingComplete();
-  }
+  const allDone = await isOnboardingComplete();
 
   // Keep the proxy's fast-path cookie in sync with the DB truth so the guard
   // doesn't bounce a fully-onboarded user (e.g. signing in on a new device).

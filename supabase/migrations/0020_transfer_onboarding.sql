@@ -1,22 +1,36 @@
 -- Transfers an onboarding row from a previous (anonymous) user to the current
--- authenticated user. Called after email-only sign-in when the real user has no
--- onboarding row but a completed one exists under the anonymous session.
--- Runs as SECURITY DEFINER so it can update across user_ids despite RLS.
+-- authenticated user. Looks up the anonymous user by claimed_email in metadata.
+-- Runs as SECURITY DEFINER so it can access auth.users and cross user_ids
+-- despite RLS on user_onboarding.
 
-create or replace function public.transfer_onboarding(p_anon_user_id uuid)
+create or replace function public.transfer_onboarding(p_email text)
 returns void
 language plpgsql
 security definer
 as $$
+declare
+  anon_uid uuid;
 begin
-  -- Move the onboarding row from the anonymous user to the current user.
-  -- Only transfers if the source row exists and the target doesn't.
+  -- Find the anonymous user who claimed this email.
+  select id into anon_uid
+    from auth.users
+   where is_anonymous = true
+     and (user_metadata ->> 'claimed_email') = p_email
+   limit 1;
+
+  if anon_uid is null then
+    return;
+  end if;
+
+  -- Only transfer if the current user doesn't already have a row.
+  if exists (select 1 from user_onboarding where user_id = auth.uid()) then
+    return;
+  end if;
+
+  -- Move the onboarding row to the current user.
   update user_onboarding
      set user_id = auth.uid(),
          updated_at = now()
-   where user_id = p_anon_user_id
-     and not exists (
-       select 1 from user_onboarding where user_id = auth.uid()
-     );
+   where user_id = anon_uid;
 end;
 $$;

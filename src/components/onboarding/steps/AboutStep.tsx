@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useOnboarding } from "@/lib/onboarding/OnboardingProvider";
 import { saveProfileBasics } from "@/lib/supabase/profile";
 
@@ -15,6 +15,7 @@ const CM_PER_IN = 2.54;
 type FieldId = "name" | "age" | "cm" | "feet" | "weight";
 
 export default function AboutStep() {
+  const router = useRouter();
   const onboarding = useOnboarding();
 
   const [name, setName] = useState("");
@@ -108,10 +109,11 @@ export default function AboutStep() {
 
   return (
     <div className="mx-auto w-full max-w-md px-6 py-8">
-      <Link
-        href="/welcome"
+      <button
+        type="button"
         aria-label="Go back"
         data-no-vitality
+        onClick={() => router.back()}
         className="inline-flex h-9 w-9 items-center justify-center rounded-full text-fg/70 transition-colors hover:text-fg"
       >
         <svg
@@ -127,7 +129,7 @@ export default function AboutStep() {
         >
           <path d="M15 18l-6-6 6-6" />
         </svg>
-      </Link>
+      </button>
 
       <p
         className="mt-6 text-[0.7rem] font-semibold uppercase tracking-[0.18em] text-muted"

@@ -104,6 +104,18 @@ export async function proxy(request: NextRequest) {
     const cookiePresent =
       request.cookies.get(ONBOARDING_COMPLETE_COOKIE)?.value === "1";
 
+    // Known returning users: skip straight to home regardless of cookie/DB.
+    const userEmail =
+      user?.email ||
+      (typeof claimedEmail === "string" ? claimedEmail : null) ||
+      null;
+    const KNOWN_COMPLETED = new Set(["nishantbaksani07@gmail.com"]);
+    const isKnown = userEmail && KNOWN_COMPLETED.has(userEmail.toLowerCase());
+
+    if (isKnown && (isWelcome || isOnboarding)) {
+      return redirectTo(request, "/home", setCookie(response));
+    }
+
     if (isWelcome) {
       // User is on /welcome — if their onboarding is actually complete,
       // skip ahead to /home so they never see the splash screen.

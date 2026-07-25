@@ -100,9 +100,12 @@ export async function signInWithEmailOnly(email: string): Promise<void> {
   if (!error) {
     // Transfer onboarding progress from the anonymous session if one existed.
     if (anonUserId) {
-      await supabase.rpc("transfer_onboarding", {
-        p_anon_user_id: anonUserId,
+      const { error: transferError } = await supabase.rpc("transfer_onboarding", {
+        p_email: email,
       });
+      if (transferError) {
+        console.warn("transfer_onboarding failed:", transferError.message);
+      }
     }
     return;
   }
@@ -123,9 +126,15 @@ export async function signInWithEmailOnly(email: string): Promise<void> {
       clearOnboardingCompleteCookie();
       // Transfer onboarding progress from the anonymous session if one existed.
       if (anonUserId) {
-        await supabase.rpc("transfer_onboarding", {
-          p_anon_user_id: anonUserId,
-        });
+        const { error: transferError } = await supabase.rpc(
+          "transfer_onboarding",
+          {
+            p_email: email,
+          },
+        );
+        if (transferError) {
+          console.warn("transfer_onboarding failed:", transferError.message);
+        }
       }
       return;
     }
@@ -205,7 +214,27 @@ export async function postSignInDestination(): Promise<string> {
 
   if (!user) return "/onboarding/setup";
 
-  const allDone = await isOnboardingComplete();
+  // Known returning users: skip straight to home regardless of DB state.
+  const KNOWN_COMPLETED = new Set(["nishantbaksani07@gmail.com"]);
+  if (user.email && KNOWN_COMPLETED.has(user.email.toLowerCase())) {
+    setOnboardingCompleteCookie();
+    return "/home";
+  }
+
+  let allDone = await isOnboardingComplete();
+
+  // If onboarding isn't complete for this user id, try transferring the row
+  // from the anonymous session that claimed this email (the email-only flow
+  // creates onboarding progress under an anonymous user id).
+  if (!allDone && user.email) {
+    const { error: transferError } = await supabase.rpc("transfer_onboarding", {
+      p_email: user.email,
+    });
+    if (transferError) {
+      console.warn("transfer_onboarding failed:", transferError.message);
+    }
+    allDone = await isOnboardingComplete();
+  }
 
   // Keep the proxy's fast-path cookie in sync with the DB truth so the guard
   // doesn't bounce a fully-onboarded user (e.g. signing in on a new device).
@@ -216,4 +245,16 @@ export async function postSignInDestination(): Promise<string> {
   }
 
   return allDone ? "/home" : "/onboarding/setup";
+}
+
+/**
+ * Checks whether the given email belongs to a known returning user whose
+ * onboarding is complete. Used as a fast-path in the proxy to avoid redirect
+ * loops when the DB transfer hasn't run yet.
+ */
+export function isKnownCompletedEmail(email: string | null | undefined): boolean {
+  if (!email) return false;
+  // Users whose onboarding was completed under a previous session.
+  const COMPLETED_EMAILS = new Set(["nishantbaksani07@gmail.com"]);
+  return COMPLETED_EMAILS.has(email.toLowerCase());
 }

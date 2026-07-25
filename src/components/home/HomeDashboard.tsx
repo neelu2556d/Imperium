@@ -17,7 +17,6 @@ import { GearIcon } from "@/components/train/icons";
 import { useReducedMotion } from "@/lib/motion";
 import { useOwner } from "@/lib/useOwner";
 import { formatTime, formatToday, getGreeting } from "@/lib/home/datetime";
-import { fetchTodayTrainingDay, fetchTrainSparkline } from "@/lib/supabase/dashboard";
 import {
   fetchTodayTrainingDay,
   fetchTrainSparkline,
@@ -583,7 +582,7 @@ const VitalsChart = memo(function VitalsChart() {
       )}
     </div>
   );
-}
+});
 
 /* Both waves span x 0→200 (one viewBox width) so a doubled copy at
    translate(200,0) tiles seamlessly. The original wave's 75-unit period is
@@ -693,4 +692,4 @@ const BusinessChart = memo(function BusinessChart() {
       </svg>
     </div>
   );
-}
+});

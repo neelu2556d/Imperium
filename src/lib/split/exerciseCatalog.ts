@@ -27,8 +27,8 @@ export interface CatalogExercise {
 }
 
 /** Default prescription every freshly-added pick starts on. */
-export const DEFAULT_SETS = 4;
-export const DEFAULT_REPS = 8;
+export const DEFAULT_SETS = 3;
+export const DEFAULT_REPS = 12;
 
 export const EXERCISE_CATALOG: CatalogExercise[] = [
   // Chest & Shoulders

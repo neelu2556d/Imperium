@@ -112,7 +112,13 @@ export async function proxy(request: NextRequest) {
     const KNOWN_COMPLETED = new Set(["nishantbaksani07@gmail.com"]);
     const isKnown = userEmail && KNOWN_COMPLETED.has(userEmail.toLowerCase());
 
-    if (isKnown && (isWelcome || isOnboarding)) {
+    // Allow adjust-split routes even for known completed users — these are
+    // linked from the train tab to let users update their split after onboarding.
+    const isAdjustSplit =
+      pathname === "/onboarding/customize-days" ||
+      pathname === "/onboarding/pick-exercises";
+
+    if (isKnown && (isWelcome || isOnboarding) && !isAdjustSplit) {
       return redirectTo(request, "/home", setCookie(response));
     }
 

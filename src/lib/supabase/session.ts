@@ -161,7 +161,7 @@ export async function fetchSessionExercises(
       const rec = r as Record<string, unknown>;
       prescribedRepsById.set(
         rec.exercise_id as string,
-        (rec.prescribed_reps as number) ?? 8
+        (rec.prescribed_reps as number) ?? 12
       );
     }
 
@@ -227,8 +227,8 @@ export async function fetchSessionExercises(
         tier,
         isCompound: isCompoundTier(tier),
         formCue: (ex.notes as string | null) ?? null,
-        prescribedSets: (rec.prescribed_sets as number) ?? 4,
-        prescribedReps: (rec.prescribed_reps as number) ?? 8,
+        prescribedSets: (rec.prescribed_sets as number) ?? 3,
+        prescribedReps: (rec.prescribed_reps as number) ?? 12,
         last: stat,
         lastWeight: stat.weight,
         loggedToday: (loggedByExercise.get(exId) ?? []).sort(

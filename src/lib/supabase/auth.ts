@@ -172,6 +172,10 @@ async function isOnboardingComplete(): Promise<boolean> {
  * their onboarding is complete, otherwise `/onboarding/setup` to resume the
  * setup checklist. Any read failure falls back to `/onboarding/setup` — the
  * safer default for an incomplete profile.
+ *
+ * When the user has no onboarding row (e.g. they completed onboarding under a
+ * previous anonymous session), the function attempts to transfer the row from
+ * the anonymous user via the `transfer_onboarding` database function.
  */
 export async function postSignInDestination(): Promise<string> {
   const {
@@ -180,7 +184,16 @@ export async function postSignInDestination(): Promise<string> {
 
   if (!user) return "/onboarding/setup";
 
-  const allDone = await isOnboardingComplete();
+  let allDone = await isOnboardingComplete();
+
+  // If onboarding isn't complete for this user id, try transferring the row
+  // from the anonymous session that claimed this email (the email-only flow
+  // creates onboarding progress under an anonymous user id).
+  if (!allDone && user.email) {
+    await supabase.rpc("transfer_onboarding", { p_email: user.email });
+    // Re-check after the transfer.
+    allDone = await isOnboardingComplete();
+  }
 
   // Keep the proxy's fast-path cookie in sync with the DB truth so the guard
   // doesn't bounce a fully-onboarded user (e.g. signing in on a new device).

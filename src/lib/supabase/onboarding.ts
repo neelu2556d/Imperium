@@ -109,10 +109,15 @@ export async function advanceOnboardingStep(
 export async function completeOnboarding(): Promise<OnboardingState> {
   const userId = await ensureAnonymousSession();
 
+  // Mark all onboarding steps as completed so both the is_complete flag and
+  // the completed_steps array agree — the proxy's DB fallback checks step names.
+  const allSteps = ["about", "setup", "training", "split"];
+
   const { data, error } = await supabase
     .from("user_onboarding")
     .update({
       is_complete: true,
+      completed_steps: allSteps,
       completed_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })

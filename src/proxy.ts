@@ -23,11 +23,16 @@ async function isOnboardingCompleteFromDb(
 
   const { data } = await supabase
     .from("user_onboarding")
-    .select("completed_steps")
+    .select("completed_steps, is_complete")
     .eq("user_id", user.id)
     .maybeSingle();
 
   if (!data) return false;
+
+  // Prefer the explicit is_complete flag (set by completeOnboarding).
+  if (Boolean(data.is_complete)) return true;
+
+  // Fallback: check that all required steps are present.
   const steps = (data.completed_steps ?? []) as string[];
   return REQUIRED_STEPS.every((s) => steps.includes(s));
 }
@@ -118,9 +123,20 @@ export async function proxy(request: NextRequest) {
     if (!isOnboarding) {
       // Protected route outside the onboarding flow.
       if (cookiePresent) return response;
-      const complete = await isOnboardingCompleteFromDb(supabase);
+      let complete = await isOnboardingCompleteFromDb(supabase);
       if (complete) {
         return redirectTo(request, "/home", setCookie(response));
+      }
+      // The onboarding row may live under a previous anonymous user id
+      // (email-only flow). Attempt to transfer it before giving up.
+      const email = (user?.user_metadata as Record<string, unknown> | undefined)
+        ?.claimed_email;
+      if (typeof email === "string") {
+        await supabase.rpc("transfer_onboarding", { p_email: email });
+        complete = await isOnboardingCompleteFromDb(supabase);
+        if (complete) {
+          return redirectTo(request, "/home", setCookie(response));
+        }
       }
       // Incomplete → funnel into onboarding via /welcome.
       return redirectTo(request, "/welcome", response);

@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Search } from "lucide-react";
-import { fetchAllOrders, type OrderRow } from "@/lib/supabase/orders";
+import { Plus, Search, MoreVertical, Pencil, Trash2 } from "lucide-react";
+import { fetchAllOrders, deleteOrder, type OrderRow } from "@/lib/supabase/orders";
 import OrderDetailSheet from "./OrderDetailSheet";
+import EditOrderSheet from "./EditOrderSheet";
 import { PAYMENT_LABELS, metres, rupees, shortDate, statusColor } from "./orderFormat";
+import { pushToast } from "@/lib/toast";
 
 type Range = "all" | "today" | "week" | "month";
 
@@ -44,7 +46,8 @@ function rangeStart(range: Range): string | null {
 /**
  * /business/orders — the orders list. Heading + "+ Log Order", a date-range
  * filter row, a search box (party or item name), and the orders table (cards
- * on mobile). Tapping a row opens the detail bottom sheet.
+ * on mobile). Tapping a row opens the detail bottom sheet. Each row also has
+ * an overflow menu with Edit and Delete actions.
  */
 export default function OrdersScreen() {
   const router = useRouter();
@@ -52,6 +55,15 @@ export default function OrdersScreen() {
   const [range, setRange] = useState<Range>("all");
   const [query, setQuery] = useState("");
   const [openOrder, setOpenOrder] = useState<OrderRow | null>(null);
+
+  // Edit / delete state
+  const [editOrder, setEditOrder] = useState<OrderRow | null>(null);
+  const [deleteOrderId, setDeleteOrderId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const load = () => {
+    fetchAllOrders().then(setOrders);
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -79,6 +91,25 @@ export default function OrdersScreen() {
       return true;
     });
   }, [orders, range, query]);
+
+  const handleDelete = async () => {
+    if (!deleteOrderId || deleting) return;
+    setDeleting(true);
+    try {
+      const { partyName } = await deleteOrder(deleteOrderId);
+      pushToast(`${partyName} — order deleted.`);
+      setDeleteOrderId(null);
+      load();
+    } catch {
+      pushToast("Couldn't delete the order. Try again.");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const deletedOrder = deleteOrderId
+    ? orders?.find((o) => o.id === deleteOrderId)
+    : null;
 
   return (
     <div className="px-5 pb-24 pt-6 md:px-8 lg:px-12">
@@ -168,13 +199,40 @@ export default function OrdersScreen() {
             : "No orders match this filter."}
         </p>
       ) : (
-        <OrdersList orders={visible} onOpen={setOpenOrder} />
+        <OrdersList
+          orders={visible}
+          onOpen={setOpenOrder}
+          onEdit={setEditOrder}
+          onDelete={(id) => setDeleteOrderId(id)}
+        />
       )}
 
       {openOrder && (
         <OrderDetailSheet
           order={openOrder}
           onClose={() => setOpenOrder(null)}
+        />
+      )}
+
+      {editOrder && (
+        <EditOrderSheet
+          order={editOrder}
+          onClose={() => setEditOrder(null)}
+          onSaved={() => {
+            setEditOrder(null);
+            load();
+          }}
+        />
+      )}
+
+      {/* Delete confirmation */}
+      {deleteOrderId && deletedOrder && (
+        <ConfirmDelete
+          title={deletedOrder.partyName}
+          subtitle={`${deletedOrder.itemName}${deletedOrder.dNo ? ` · ${deletedOrder.dNo}` : ""} · ${rupees(deletedOrder.netPayable)}`}
+          busy={deleting}
+          onConfirm={handleDelete}
+          onCancel={() => setDeleteOrderId(null)}
         />
       )}
     </div>
@@ -188,9 +246,13 @@ export default function OrdersScreen() {
 function OrdersList({
   orders,
   onOpen,
+  onEdit,
+  onDelete,
 }: {
   orders: OrderRow[];
   onOpen: (o: OrderRow) => void;
+  onEdit: (o: OrderRow) => void;
+  onDelete: (id: string) => void;
 }) {
   return (
     <>
@@ -205,6 +267,7 @@ function OrdersList({
               <th className="px-4 py-3 text-right font-normal">Metres</th>
               <th className="px-4 py-3 text-right font-normal">Amount</th>
               <th className="px-4 py-3 text-right font-normal">Status</th>
+              <th className="w-10 px-2 py-3 text-right font-normal"> </th>
             </tr>
           </thead>
           <tbody>
@@ -244,6 +307,9 @@ function OrdersList({
                       {PAYMENT_LABELS[o.status]}
                     </span>
                   </td>
+                  <td className="px-2 py-3 text-right">
+                    <RowMenu onEdit={() => onEdit(o)} onDelete={() => onDelete(o.id)} />
+                  </td>
                 </tr>
               );
             })}
@@ -258,47 +324,243 @@ function OrdersList({
           return (
             <li
               key={o.id}
-              role="button"
-              tabIndex={0}
-              data-no-vitality
-              onClick={() => onOpen(o)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  onOpen(o);
-                }
-              }}
-              className="cursor-pointer rounded-xl border border-border bg-bg-elevated px-4 py-3 transition-colors hover:border-mint"
+              className="rounded-xl border border-border bg-bg-elevated px-4 py-3 transition-colors"
             >
-              <div className="flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-fg">
-                    {o.partyName}
-                  </p>
-                  <p className="mono mt-0.5 text-[0.68rem] text-muted">
-                    {o.itemName}
-                    {o.dNo ? ` · ${o.dNo}` : ""}
-                  </p>
+              <div
+                role="button"
+                tabIndex={0}
+                data-no-vitality
+                onClick={() => onOpen(o)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    onOpen(o);
+                  }
+                }}
+                className="cursor-pointer"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-fg">
+                      {o.partyName}
+                    </p>
+                    <p className="mono mt-0.5 text-[0.68rem] text-muted">
+                      {o.itemName}
+                      {o.dNo ? ` · ${o.dNo}` : ""}
+                    </p>
+                  </div>
+                  <span
+                    className="mono shrink-0 rounded-full border px-2.5 py-1 text-[0.58rem] uppercase tracking-[0.1em]"
+                    style={{ color, borderColor: color }}
+                  >
+                    {PAYMENT_LABELS[o.status]}
+                  </span>
                 </div>
-                <span
-                  className="mono shrink-0 rounded-full border px-2.5 py-1 text-[0.58rem] uppercase tracking-[0.1em]"
-                  style={{ color, borderColor: color }}
-                >
-                  {PAYMENT_LABELS[o.status]}
-                </span>
+                <div className="mono mt-2 flex items-baseline justify-between text-[0.72rem] tabular-nums text-muted">
+                  <span>
+                    {shortDate(o.orderDate)} · {metres(o.totalMetres)}
+                  </span>
+                  <span className="font-semibold text-fg">
+                    {rupees(o.netPayable)}
+                  </span>
+                </div>
               </div>
-              <div className="mono mt-2 flex items-baseline justify-between text-[0.72rem] tabular-nums text-muted">
-                <span>
-                  {shortDate(o.orderDate)} · {metres(o.totalMetres)}
-                </span>
-                <span className="font-semibold text-fg">
-                  {rupees(o.netPayable)}
-                </span>
+              <div className="mt-2 flex justify-end gap-1 border-t border-border pt-2">
+                <button
+                  type="button"
+                  data-no-vitality
+                  onClick={() => onEdit(o)}
+                  className="flex items-center gap-1.5 rounded-full border bg-transparent px-3 py-1.5 text-[0.72rem] font-medium"
+                  style={{
+                    borderColor: "var(--color-border)",
+                    color: "var(--color-muted-strong)",
+                  }}
+                >
+                  <Pencil size={12} aria-hidden />
+                  Edit
+                </button>
+                <button
+                  type="button"
+                  data-no-vitality
+                  onClick={() => onDelete(o.id)}
+                  className="flex items-center gap-1.5 rounded-full border bg-transparent px-3 py-1.5 text-[0.72rem] font-medium"
+                  style={{
+                    borderColor: "var(--color-border)",
+                    color: "var(--color-danger)",
+                  }}
+                >
+                  <Trash2 size={12} aria-hidden />
+                  Delete
+                </button>
               </div>
             </li>
           );
         })}
       </ul>
     </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Row action menu (desktop three-dot)
+// ---------------------------------------------------------------------------
+
+function RowMenu({
+  onEdit,
+  onDelete,
+}: {
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handle = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handle);
+    return () => document.removeEventListener("mousedown", handle);
+  }, [open]);
+
+  return (
+    <div ref={ref} className="relative" onClick={(e) => e.stopPropagation()}>
+      <button
+        type="button"
+        data-no-vitality
+        aria-label="More actions"
+        aria-expanded={open}
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpen((p) => !p);
+        }}
+        className="flex h-8 w-8 items-center justify-center rounded-full border-0 bg-transparent text-muted-strong hover:bg-white/[0.05] hover:text-fg"
+      >
+        <MoreVertical size={15} aria-hidden />
+      </button>
+      {open && (
+        <div
+          className="absolute right-0 top-full z-20 mt-1 min-w-[140px] overflow-hidden rounded-xl border shadow-lg"
+          style={{
+            borderColor: "var(--color-border-strong)",
+            background: "var(--color-bg-elevated)",
+          }}
+        >
+          <button
+            type="button"
+            data-no-vitality
+            onClick={(e) => {
+              e.stopPropagation();
+              setOpen(false);
+              onEdit();
+            }}
+            className="flex w-full items-center gap-2.5 border-0 bg-transparent px-4 py-2.5 text-left text-sm text-fg hover:bg-white/[0.05]"
+          >
+            <Pencil size={14} aria-hidden />
+            Edit
+          </button>
+          <button
+            type="button"
+            data-no-vitality
+            onClick={(e) => {
+              e.stopPropagation();
+              setOpen(false);
+              onDelete();
+            }}
+            className="flex w-full items-center gap-2.5 border-0 bg-transparent px-4 py-2.5 text-left text-sm hover:bg-white/[0.05]"
+            style={{ color: "var(--color-danger)" }}
+          >
+            <Trash2 size={14} aria-hidden />
+            Delete
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Delete confirmation dialog
+// ---------------------------------------------------------------------------
+
+function ConfirmDelete({
+  title,
+  subtitle,
+  busy,
+  onConfirm,
+  onCancel,
+}: {
+  title: string;
+  subtitle: string;
+  busy: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onCancel();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onCancel]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-5">
+      <div
+        className="absolute inset-0"
+        style={{ background: "rgba(0,0,0,0.6)" }}
+        onClick={onCancel}
+        aria-hidden
+      />
+      <div
+        className="relative w-full max-w-sm rounded-2xl border p-6 shadow-xl"
+        style={{
+          borderColor: "var(--color-border-strong)",
+          background: "var(--color-bg-elevated)",
+        }}
+        role="alertdialog"
+        aria-label="Delete order"
+      >
+        <p className="text-lg font-semibold text-fg">
+          Delete order for &ldquo;{title}&rdquo;?
+        </p>
+        <p className="mt-1.5 text-sm text-muted">{subtitle}</p>
+        <p className="mt-4 text-sm leading-relaxed" style={{ color: "var(--color-danger)" }}>
+          This will permanently remove this order and its payment records.
+          This action cannot be undone.
+        </p>
+        <div className="mt-5 flex flex-col gap-2.5">
+          <button
+            type="button"
+            className="btn-primary w-full"
+            style={{
+              background: "var(--color-danger)",
+              color: "#fff",
+              borderColor: "transparent",
+            }}
+            disabled={busy}
+            onClick={onConfirm}
+          >
+            {busy ? "Deleting…" : "Delete order"}
+          </button>
+          <button
+            type="button"
+            data-no-vitality
+            disabled={busy}
+            onClick={onCancel}
+            className="w-full rounded-full border bg-transparent px-4 py-2.5 text-sm font-medium"
+            style={{
+              borderColor: "var(--color-border-strong)",
+              color: "var(--color-fg)",
+            }}
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }

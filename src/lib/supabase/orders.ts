@@ -856,3 +856,136 @@ export async function createPayment(
     amountReceived: newReceived,
   };
 }
+
+// ---------------------------------------------------------------------------
+// Writers — update
+// ---------------------------------------------------------------------------
+
+export interface UpdateOrderInput {
+  paymentStatus?: PaymentStatus;
+  amountReceived?: number;
+  discountPercent?: number;
+  gstApplicable?: boolean;
+  paymentDays?: number;
+  topRate?: number;
+  bottomRate?: number;
+  dupattaRate?: number;
+}
+
+/**
+ * Updates an existing order's editable fields. Returns the new payment status
+ * (which may auto-transition to "paid" when amount_received reaches net_payable).
+ * Only the supplied fields are changed — omitted fields keep their current values.
+ */
+export async function updateOrder(
+  orderId: string,
+  input: UpdateOrderInput
+): Promise<{ newStatus: PaymentStatus | null }> {
+  const userId = await ensureAnonymousSession();
+
+  const updates: Record<string, unknown> = {};
+  const now = new Date().toISOString();
+
+  if (input.paymentStatus !== undefined) updates.payment_status = input.paymentStatus;
+  if (input.amountReceived !== undefined) updates.amount_received = input.amountReceived;
+  if (input.discountPercent !== undefined) {
+    updates.discount_percent = input.discountPercent;
+  }
+  if (input.gstApplicable !== undefined) {
+    updates.gst_applicable = input.gstApplicable;
+  }
+  if (input.paymentDays !== undefined) {
+    updates.payment_days = input.paymentDays;
+    // Recompute due date when payment days change
+    const { data } = await supabase
+      .from("orders")
+      .select("order_date")
+      .eq("user_id", userId)
+      .eq("id", orderId)
+      .maybeSingle();
+    if (data?.order_date) {
+      updates.due_date = computeDueDate(
+        String(data.order_date),
+        input.paymentDays
+      );
+    }
+  }
+  if (input.topRate !== undefined) updates.top_rate = input.topRate;
+  if (input.bottomRate !== undefined) updates.bottom_rate = input.bottomRate;
+  if (input.dupattaRate !== undefined) updates.dupatta_rate = input.dupattaRate;
+
+  if (Object.keys(updates).length === 0) return { newStatus: null };
+
+  updates.updated_at = now;
+
+  const { error } = await supabase
+    .from("orders")
+    .update(updates)
+    .eq("user_id", userId)
+    .eq("id", orderId);
+
+  if (error) throw error;
+
+  // If amount was updated, auto-recalculate payment status
+  let newStatus: PaymentStatus | null = null;
+  if (input.amountReceived !== undefined) {
+    const { data: refreshed } = await supabase
+      .from("orders")
+      .select("net_payable, amount_received, payment_status")
+      .eq("user_id", userId)
+      .eq("id", orderId)
+      .maybeSingle();
+    if (refreshed) {
+      const netPayable = num(refreshed.net_payable);
+      const amountReceived = num(refreshed.amount_received);
+      const balance = netPayable - amountReceived;
+      if (balance <= 0) {
+        newStatus = "paid";
+      } else if (amountReceived > 0) {
+        newStatus = "partial";
+      }
+      if (newStatus && newStatus !== String(refreshed.payment_status)) {
+        await supabase
+          .from("orders")
+          .update({ payment_status: newStatus, updated_at: now })
+          .eq("user_id", userId)
+          .eq("id", orderId);
+      }
+    }
+  }
+
+  return { newStatus };
+}
+
+// ---------------------------------------------------------------------------
+// Writers — delete
+// ---------------------------------------------------------------------------
+
+/**
+ * Deletes an order. Returns the party name (for toast messaging).
+ * Throws on failure so the caller can surface the error.
+ */
+export async function deleteOrder(orderId: string): Promise<{ partyName: string }> {
+  const userId = await ensureAnonymousSession();
+
+  // Fetch the order for the toast message before deleting
+  const { data: orderData, error: fetchError } = await supabase
+    .from("orders")
+    .select("party_name")
+    .eq("user_id", userId)
+    .eq("id", orderId)
+    .maybeSingle();
+  if (fetchError) throw fetchError;
+
+  const partyName = String(orderData?.party_name ?? "Unknown party");
+
+  const { error } = await supabase
+    .from("orders")
+    .delete()
+    .eq("user_id", userId)
+    .eq("id", orderId);
+
+  if (error) throw error;
+
+  return { partyName };
+}

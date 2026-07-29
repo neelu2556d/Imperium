@@ -221,7 +221,7 @@ export async function fetchItemMaster(): Promise<ItemMasterEntry[]> {
 }
 
 // ---------------------------------------------------------------------------
-// Writers
+// Writers — create
 // ---------------------------------------------------------------------------
 
 async function uploadToBucket(
@@ -305,4 +305,137 @@ export async function createLot(input: NewLotInput): Promise<string> {
   if (error || !data) throw error ?? new Error("Couldn't save the lot.");
 
   return String(data.id);
+}
+
+// ---------------------------------------------------------------------------
+// Writers — update
+// ---------------------------------------------------------------------------
+
+export interface UpdateLotInput {
+  itemName?: string;
+  dNo?: string;
+  designPhoto?: File | null;
+  topCost?: number | null;
+  bottomCost?: number | null;
+  dupattaCost?: number | null;
+  threshold?: number;
+  status?: LotStatus;
+}
+
+/**
+ * Updates an existing lot's editable fields. Returns true on success, throws
+ * on failure. Only the supplied fields are changed — omitted fields keep their
+ * current values. For the design photo, pass `null` explicitly to clear it,
+ * `undefined` to leave it unchanged, or a `File` to upload a replacement.
+ */
+export async function updateLot(
+  lotId: string,
+  input: UpdateLotInput
+): Promise<void> {
+  const userId = await ensureAnonymousSession();
+
+  const updates: Record<string, unknown> = {};
+  const newPhoto = input.designPhoto;
+
+  if (input.itemName !== undefined) updates.item_name = input.itemName.trim();
+  if (input.dNo !== undefined) updates.d_no = input.dNo.trim() || null;
+  if (input.topCost !== undefined) updates.top_cost_per_metre = input.topCost;
+  if (input.bottomCost !== undefined) updates.bottom_cost_per_metre = input.bottomCost;
+  if (input.dupattaCost !== undefined) updates.dupatta_cost_per_metre = input.dupattaCost;
+  if (input.threshold !== undefined) updates.low_stock_threshold_metres = input.threshold;
+  if (input.status !== undefined) updates.status = input.status;
+
+  // Handle design photo upload / clear
+  if (newPhoto instanceof File) {
+    const url = await uploadToBucket(PHOTO_BUCKET, userId, newPhoto);
+    if (url) updates.design_photo_url = url;
+  } else if (newPhoto === null) {
+    updates.design_photo_url = null;
+  }
+
+  if (Object.keys(updates).length === 0) return;
+
+  const { error } = await supabase
+    .from("lots")
+    .update(updates)
+    .eq("user_id", userId)
+    .eq("id", lotId);
+  if (error) throw error;
+}
+
+// ---------------------------------------------------------------------------
+// Writers — delete
+// ---------------------------------------------------------------------------
+
+/**
+ * Deletes a lot and its associated Storage files. Throws if the lot has
+ * existing orders (the caller should confirm the user wants to proceed).
+ * Returns the number of associated orders that will be orphaned.
+ */
+export async function deleteLot(lotId: string): Promise<{ orderCount: number }> {
+  const userId = await ensureAnonymousSession();
+
+  // Check for orders against this lot
+  const { data: orders, error: orderError } = await supabase
+    .from("orders")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("lot_id", lotId);
+  if (orderError) throw orderError;
+
+  const orderCount = (orders ?? []).length;
+
+  // Fetch the lot's storage paths so we can clean up
+  const { data: lotRow, error: lotError } = await supabase
+    .from("lots")
+    .select("design_photo_url, lot_report_url")
+    .eq("user_id", userId)
+    .eq("id", lotId)
+    .maybeSingle();
+  if (lotError) throw lotError;
+
+  // Delete from storage (best-effort — don't block the DB delete on this)
+  if (lotRow) {
+    const paths: string[] = [];
+    for (const url of [lotRow.design_photo_url, lotRow.lot_report_url]) {
+      if (typeof url === "string" && url.includes(PHOTO_BUCKET + "/")) {
+        const parts = url.split(PHOTO_BUCKET + "/")[1];
+        if (parts) paths.push(`${userId}/${parts.split("/").pop()}`);
+      }
+      if (typeof url === "string" && url.includes(REPORT_BUCKET + "/")) {
+        const parts = url.split(REPORT_BUCKET + "/")[1];
+        if (parts) paths.push(`${userId}/${parts.split("/").pop()}`);
+      }
+    }
+    if (paths.length > 0) {
+      await supabase.storage
+        .from(PHOTO_BUCKET)
+        .remove(paths.filter((p) => p.startsWith(userId)))
+        .catch(() => {});
+      await supabase.storage
+        .from(REPORT_BUCKET)
+        .remove(paths.filter((p) => p.startsWith(userId)))
+        .catch(() => {});
+    }
+  }
+
+  // Disconnect orders from this lot (set lot_id to null) so order history survives
+  if (orderCount > 0) {
+    const { error: updateOrdersError } = await supabase
+      .from("orders")
+      .update({ lot_id: null })
+      .eq("user_id", userId)
+      .eq("lot_id", lotId);
+    if (updateOrdersError) throw updateOrdersError;
+  }
+
+  // Delete the lot row
+  const { error: deleteError } = await supabase
+    .from("lots")
+    .delete()
+    .eq("user_id", userId)
+    .eq("id", lotId);
+  if (deleteError) throw deleteError;
+
+  return { orderCount };
 }

@@ -1,8 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { createProxyClient } from "@/lib/supabase/proxy";
+import { createServerClient } from "@supabase/ssr";
 
-/** Cookie name used by the proxy route guard for the onboarding fast-path.
- *  Must match the name in `proxy.ts` and `cookie.ts`. */
+/** Cookie name used by the proxy route guard for the onboarding fast-path. */
 const ONBOARDING_COOKIE = "onboarding_complete";
 
 /** Emails of users known to have completed onboarding. */
@@ -15,61 +14,104 @@ const KNOWN_COMPLETED = new Set(["nishantbaksani07@gmail.com"]);
  * the authorisation code for a real Supabase session, then redirect to the
  * post-sign-in destination (onboarding or home).
  *
- * Because `createProxyClient` reads/writes cookies via the SSR cookie store,
- * the refreshed session tokens ride back on the response automatically. All
- * operations are server-side — no browser APIs involved.
+ * Unlike `createProxyClient` (which is designed for middleware/proxy.ts), this
+ * handler creates `createServerClient` directly using the Route Handler cookie
+ * pattern: `request.cookies.getAll()` for reads and a local response for writes.
+ * This ensures the PKCE code verifier cookie and the exchanged session cookies
+ * are handled correctly in the Route Handler context.
  */
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = request.nextUrl;
 
   const code = searchParams.get("code");
   if (!code) {
+    console.error("OAuth callback: no code in URL params");
     return NextResponse.redirect(`${origin}/auth/signin`);
   }
 
-  const { supabase, response } = createProxyClient(request);
+  // We'll collect cookies that need to be set onto the final redirect response.
+  // This avoids relying on NextResponse.next() (designed for middleware) inside
+  // a Route Handler.
+  const pendingCookies: Array<{
+    name: string;
+    value: string;
+    options?: Record<string, unknown>;
+  }> = [];
 
-  // Exchange the OAuth code for a real Supabase session.
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll(cookiesToSet) {
+          for (const { name, value, options } of cookiesToSet) {
+            // Replace any pending cookie with the same name (last write wins).
+            const idx = pendingCookies.findIndex((c) => c.name === name);
+            const entry = { name, value, options };
+            if (idx >= 0) {
+              pendingCookies[idx] = entry;
+            } else {
+              pendingCookies.push(entry);
+            }
+          }
+        },
+      },
+    }
+  );
+
+  console.log("OAuth callback: exchanging code for session…");
   const { error } = await supabase.auth.exchangeCodeForSession(code);
   if (error) {
-    console.error("OAuth callback error:", error.message);
+    console.error("OAuth callback: exchangeCodeForSession failed:", error.message);
+    // Failed — redirect back to sign-in.
     return NextResponse.redirect(`${origin}/auth/signin`);
   }
+  console.log("OAuth callback: session exchange succeeded.");
 
   // Determine the best destination using the server-side client.
-  const destination = await determineDestination(supabase, response);
+  const destination = await determineDestination(supabase, pendingCookies);
+  console.log("OAuth callback: destination =", destination);
 
+  // Build the final redirect and stamp all accumulated cookies onto it.
   const redirect = NextResponse.redirect(`${origin}${destination}`);
-
-  // Preserve any refreshed auth cookies from the session exchange.
-  response.cookies.getAll().forEach((cookie) => {
-    redirect.cookies.set(cookie);
-  });
+  for (const { name, value, options } of pendingCookies) {
+    redirect.cookies.set(name, value, options as any);
+  }
 
   return redirect;
 }
 
 /**
  * Server-side equivalent of `postSignInDestination`. Checks the DB for
- * onboarding completion status and sets/clears the fast-path cookie on the
- * response so the proxy guard doesn't bounce the user.
+ * onboarding completion status and pushes the fast-path cookie into
+ * `pendingCookies` so the proxy guard doesn't bounce the user.
  */
 async function determineDestination(
-  supabase: ReturnType<typeof createProxyClient>["supabase"],
-  response: ReturnType<typeof createProxyClient>["response"],
+  supabase: ReturnType<typeof createServerClient>,
+  pendingCookies: Array<{
+    name: string;
+    value: string;
+    options?: Record<string, unknown>;
+  }>,
 ): Promise<string> {
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) return "/onboarding/setup";
+  if (!user) {
+    console.log("OAuth callback: no user after session exchange, sending to onboarding");
+    return "/onboarding/setup";
+  }
 
   // Known completed users skip the DB check.
   if (user.email && KNOWN_COMPLETED.has(user.email.toLowerCase())) {
-    response.cookies.set(ONBOARDING_COOKIE, "1", {
-      path: "/",
-      maxAge: 31536000,
-      sameSite: "lax",
+    pendingCookies.push({
+      name: ONBOARDING_COOKIE,
+      value: "1",
+      options: { path: "/", maxAge: 31536000, sameSite: "lax" },
     });
     return "/home";
   }
@@ -89,10 +131,10 @@ async function determineDestination(
       );
 
     if (allDone) {
-      response.cookies.set(ONBOARDING_COOKIE, "1", {
-        path: "/",
-        maxAge: 31536000,
-        sameSite: "lax",
+      pendingCookies.push({
+        name: ONBOARDING_COOKIE,
+        value: "1",
+        options: { path: "/", maxAge: 31536000, sameSite: "lax" },
       });
       return "/home";
     }
@@ -113,19 +155,20 @@ async function determineDestination(
       .maybeSingle();
 
     if (retry?.is_complete) {
-      response.cookies.set(ONBOARDING_COOKIE, "1", {
-        path: "/",
-        maxAge: 31536000,
-        sameSite: "lax",
+      pendingCookies.push({
+        name: ONBOARDING_COOKIE,
+        value: "1",
+        options: { path: "/", maxAge: 31536000, sameSite: "lax" },
       });
       return "/home";
     }
   }
 
   // Not onboarded — clear any stale cookie and send to setup.
-  response.cookies.set(ONBOARDING_COOKIE, "", {
-    path: "/",
-    maxAge: 0,
+  pendingCookies.push({
+    name: ONBOARDING_COOKIE,
+    value: "",
+    options: { path: "/", maxAge: 0 },
   });
   return "/onboarding/setup";
 }

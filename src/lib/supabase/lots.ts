@@ -18,6 +18,14 @@ const num = (v: unknown): number => {
   return Number.isFinite(n) ? n : 0;
 };
 
+/** Local YYYY-MM-DD (matches how lots.date_arrived is stored). */
+function localISODate(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
 const PHOTO_BUCKET = "lot-photos";
 const REPORT_BUCKET = "lot-reports";
 
@@ -69,6 +77,7 @@ export interface NewLotInput {
   dNo: string;
   designPhoto: File | null;
   lotReport: File | null;
+  dateArrived: string;
   topMetres: number;
   bottomMetres: number;
   dupattaMetres: number;
@@ -282,6 +291,21 @@ export async function createLot(input: NewLotInput): Promise<string> {
       : Promise.resolve(null),
   ]);
 
+  // A back-dated lot shouldn't sit in "arrived" forever: run the same status
+  // rule the SQL trigger applies once an order lands, so an old arrival gets
+  // its age-based status immediately (e.g. dead_stock when stock is high).
+  const dateArrived = input.dateArrived || localISODate(new Date());
+  const status: LotStatus =
+    dateArrived === localISODate(new Date())
+      ? "arrived"
+      : computeLotStatus({
+          topRemaining: input.topMetres,
+          bottomRemaining: input.bottomMetres,
+          dupattaRemaining: input.dupattaMetres,
+          threshold: input.threshold,
+          dateArrived,
+        });
+
   const { data, error } = await supabase
     .from("lots")
     .insert({
@@ -291,6 +315,7 @@ export async function createLot(input: NewLotInput): Promise<string> {
       d_no: input.dNo.trim() || null,
       design_photo_url: designPhotoUrl,
       lot_report_url: lotReportUrl,
+      date_arrived: dateArrived,
       top_opening_stock: input.topMetres,
       bottom_opening_stock: input.bottomMetres,
       dupatta_opening_stock: input.dupattaMetres,
@@ -298,13 +323,85 @@ export async function createLot(input: NewLotInput): Promise<string> {
       bottom_cost_per_metre: input.bottomCost,
       dupatta_cost_per_metre: input.dupattaCost,
       low_stock_threshold_metres: input.threshold,
-      status: "arrived" satisfies LotStatus,
+      status,
     })
     .select("id")
     .single();
   if (error || !data) throw error ?? new Error("Couldn't save the lot.");
 
   return String(data.id);
+}
+
+// ---------------------------------------------------------------------------
+// Status recompute — mirrors the SQL CASE branch order in 0017_business_tab.sql
+// (cleared > low_stock > dead_stock > active). Used when a lot is created
+// back-dated, when its opening stock / date / threshold change, and when an
+// order is moved off it (the DB trigger only rebalances the lot moved onto).
+// ---------------------------------------------------------------------------
+
+export interface LotStatusInput {
+  topRemaining: number;
+  bottomRemaining: number;
+  dupattaRemaining: number;
+  threshold: number;
+  dateArrived: string | null;
+}
+
+/** Computes a lot's status from remaining stock and age, mirroring the SQL
+ *  `update_lot_status()` trigger exactly. */
+export function computeLotStatus(input: LotStatusInput): LotStatus {
+  const { topRemaining, bottomRemaining, dupattaRemaining, threshold } = input;
+  if (topRemaining <= 0 && bottomRemaining <= 0 && dupattaRemaining <= 0) {
+    return "cleared";
+  }
+  if (
+    topRemaining < threshold ||
+    bottomRemaining < threshold ||
+    dupattaRemaining < threshold
+  ) {
+    return "low_stock";
+  }
+  if (input.dateArrived) {
+    const arrived = new Date(`${input.dateArrived}T00:00:00`);
+    const daysSince = Math.max(
+      0,
+      Math.floor((Date.now() - arrived.getTime()) / 86_400_000)
+    );
+    if (daysSince > 45 && topRemaining > threshold) return "dead_stock";
+  }
+  return "active";
+}
+
+/**
+ * Re-fetches a lot from stock_register and writes its status from the CASE
+ * rule. Best-effort (swallows errors like the other background helpers) — the
+ * next order write or list load recomputes anyway.
+ */
+export async function recomputeLotStatus(lotId: string): Promise<void> {
+  try {
+    const userId = await ensureAnonymousSession();
+    const { data, error } = await supabase
+      .from("stock_register")
+      .select("*")
+      .eq("user_id", userId)
+      .eq("lot_id", lotId)
+      .maybeSingle();
+    if (error || !data) return;
+    const status = computeLotStatus({
+      topRemaining: num(data.top_remaining),
+      bottomRemaining: num(data.bottom_remaining),
+      dupattaRemaining: num(data.dupatta_remaining),
+      threshold: num(data.low_stock_threshold_metres),
+      dateArrived: (data.date_arrived as string | null) ?? null,
+    });
+    await supabase
+      .from("lots")
+      .update({ status })
+      .eq("user_id", userId)
+      .eq("id", lotId);
+  } catch {
+    /* non-fatal */
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -315,6 +412,10 @@ export interface UpdateLotInput {
   itemName?: string;
   dNo?: string;
   designPhoto?: File | null;
+  dateArrived?: string;
+  topOpeningStock?: number;
+  bottomOpeningStock?: number;
+  dupattaOpeningStock?: number;
   topCost?: number | null;
   bottomCost?: number | null;
   dupattaCost?: number | null;
@@ -327,6 +428,11 @@ export interface UpdateLotInput {
  * on failure. Only the supplied fields are changed — omitted fields keep their
  * current values. For the design photo, pass `null` explicitly to clear it,
  * `undefined` to leave it unchanged, or a `File` to upload a replacement.
+ *
+ * When opening stock, arrival date, or the threshold change (and `status` is
+ * not supplied), the lot's status is recomputed client-side from remaining
+ * stock + age and written in the same UPDATE, so the stored status always
+ * matches what stock_register would report.
  */
 export async function updateLot(
   lotId: string,
@@ -339,11 +445,51 @@ export async function updateLot(
 
   if (input.itemName !== undefined) updates.item_name = input.itemName.trim();
   if (input.dNo !== undefined) updates.d_no = input.dNo.trim() || null;
+  if (input.dateArrived !== undefined) updates.date_arrived = input.dateArrived;
+  if (input.topOpeningStock !== undefined) updates.top_opening_stock = input.topOpeningStock;
+  if (input.bottomOpeningStock !== undefined) updates.bottom_opening_stock = input.bottomOpeningStock;
+  if (input.dupattaOpeningStock !== undefined) updates.dupatta_opening_stock = input.dupattaOpeningStock;
   if (input.topCost !== undefined) updates.top_cost_per_metre = input.topCost;
   if (input.bottomCost !== undefined) updates.bottom_cost_per_metre = input.bottomCost;
   if (input.dupattaCost !== undefined) updates.dupatta_cost_per_metre = input.dupattaCost;
   if (input.threshold !== undefined) updates.low_stock_threshold_metres = input.threshold;
   if (input.status !== undefined) updates.status = input.status;
+
+  // Recompute the status client-side when stock / date / threshold changed and
+  // the user didn't set a status explicitly. Read sold figures from the
+  // current stock_register row, then fold the new opening stock into the
+  // remaining before applying the CASE rule — all in the same UPDATE below.
+  const stockChanged =
+    input.topOpeningStock !== undefined ||
+    input.bottomOpeningStock !== undefined ||
+    input.dupattaOpeningStock !== undefined ||
+    input.dateArrived !== undefined ||
+    input.threshold !== undefined;
+  if (stockChanged && input.status === undefined) {
+    const { data: sr, error: srError } = await supabase
+      .from("stock_register")
+      .select(
+        "top_opening_stock, bottom_opening_stock, dupatta_opening_stock, top_sold, bottom_sold, dupatta_sold, low_stock_threshold_metres, date_arrived"
+      )
+      .eq("user_id", userId)
+      .eq("lot_id", lotId)
+      .maybeSingle();
+    if (!srError && sr) {
+      updates.status = computeLotStatus({
+        topRemaining:
+          (input.topOpeningStock ?? num(sr.top_opening_stock)) - num(sr.top_sold),
+        bottomRemaining:
+          (input.bottomOpeningStock ?? num(sr.bottom_opening_stock)) -
+          num(sr.bottom_sold),
+        dupattaRemaining:
+          (input.dupattaOpeningStock ?? num(sr.dupatta_opening_stock)) -
+          num(sr.dupatta_sold),
+        threshold: input.threshold ?? num(sr.low_stock_threshold_metres),
+        dateArrived:
+          input.dateArrived ?? ((sr.date_arrived as string | null) ?? null),
+      });
+    }
+  }
 
   // Handle design photo upload / clear
   if (newPhoto instanceof File) {

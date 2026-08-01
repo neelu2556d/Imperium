@@ -8,6 +8,7 @@ import { useCountUp } from "@/lib/motion";
 import BottomSheet from "@/components/vitals/BottomSheet";
 import { fetchItemMaster, type ItemMasterEntry } from "@/lib/supabase/lots";
 import {
+  computeDueDate,
   computeTotals,
   createOrder,
   createParty,
@@ -25,6 +26,14 @@ const toNum = (v: string): number => {
   const n = Number(v);
   return Number.isFinite(n) && n >= 0 ? n : 0;
 };
+
+/** Local YYYY-MM-DD (matches how order_date is stored). */
+function localISODate(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
 
 const inputFull = {
   background: "var(--color-card)",
@@ -51,7 +60,10 @@ export default function NewOrderScreen() {
   const [parties, setParties] = useState<PartyEntry[]>([]);
   const [loaded, setLoaded] = useState(false);
 
-  // Section 1 — item + lot
+  // Section 1 — order date
+  const [orderDate, setOrderDate] = useState(() => localISODate(new Date()));
+
+  // Section 2 — item + lot
   const [itemId, setItemId] = useState<string | null>(null);
   const [itemName, setItemName] = useState("");
   const [lotId, setLotId] = useState<string | null>(null);
@@ -164,15 +176,10 @@ export default function NewOrderScreen() {
     ]
   );
 
-  const dueDate = useMemo(() => {
-    const days = toNum(paymentDays);
-    const d = new Date();
-    d.setDate(d.getDate() + days);
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, "0");
-    const dd = String(d.getDate()).padStart(2, "0");
-    return `${y}-${m}-${dd}`;
-  }, [paymentDays]);
+  const dueDate = useMemo(
+    () => computeDueDate(orderDate, toNum(paymentDays)),
+    [orderDate, paymentDays]
+  );
 
   const canSave =
     !!lotId &&
@@ -186,6 +193,7 @@ export default function NewOrderScreen() {
     setError(null);
     try {
       const result = await createOrder({
+        orderDate,
         lotId: selectedLot.lotId,
         itemId: selectedLot.itemId ?? itemId,
         itemName: selectedLot.itemName || itemName.trim(),
@@ -259,6 +267,23 @@ export default function NewOrderScreen() {
         </div>
       ) : (
         <div className="mt-6 flex flex-col gap-7">
+          <section className="flex flex-col gap-4 border-0 bg-transparent p-0 shadow-none" data-no-vitality>
+            <SectionTitle>Date</SectionTitle>
+            <Field label="Order date">
+              <input
+                type="date"
+                value={orderDate}
+                onChange={(e) => setOrderDate(e.target.value)}
+                className="mono w-full"
+                data-no-vitality
+                style={inputFull}
+              />
+              <p className="mt-1.5 text-[0.72rem] text-muted">
+                Due date = order date + payment days.
+              </p>
+            </Field>
+          </section>
+
           <ItemLotSection
             items={items}
             lotsForItem={lotsForItem}

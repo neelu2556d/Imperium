@@ -4,6 +4,17 @@ import { createServerClient } from "@supabase/ssr";
 /** Cookie name used by the proxy route guard for the onboarding fast-path. */
 const ONBOARDING_COOKIE = "onboarding_complete";
 
+/**
+ * Cookie option fields we restamp onto the final redirect. Kept local because
+ * Next 16 doesn't re-export the `ResponseCookie` type from `next/server` — this
+ * is the subset of its signature the callback actually writes.
+ */
+interface CookieOptions {
+  path?: string;
+  maxAge?: number;
+  sameSite?: "lax" | "strict" | "none";
+}
+
 /** Emails of users known to have completed onboarding. */
 const KNOWN_COMPLETED = new Set(["nishantbaksani07@gmail.com"]);
 
@@ -35,7 +46,7 @@ export async function GET(request: NextRequest) {
   const pendingCookies: Array<{
     name: string;
     value: string;
-    options?: Record<string, unknown>;
+    options?: CookieOptions;
   }> = [];
 
   const supabase = createServerClient(
@@ -50,7 +61,11 @@ export async function GET(request: NextRequest) {
           for (const { name, value, options } of cookiesToSet) {
             // Replace any pending cookie with the same name (last write wins).
             const idx = pendingCookies.findIndex((c) => c.name === name);
-            const entry = { name, value, options };
+            const entry = {
+              name,
+              value,
+              options: options as CookieOptions | undefined,
+            };
             if (idx >= 0) {
               pendingCookies[idx] = entry;
             } else {
@@ -78,7 +93,7 @@ export async function GET(request: NextRequest) {
   // Build the final redirect and stamp all accumulated cookies onto it.
   const redirect = NextResponse.redirect(`${origin}${destination}`);
   for (const { name, value, options } of pendingCookies) {
-    redirect.cookies.set(name, value, options as any);
+    redirect.cookies.set(name, value, options);
   }
 
   return redirect;
@@ -94,7 +109,7 @@ async function determineDestination(
   pendingCookies: Array<{
     name: string;
     value: string;
-    options?: Record<string, unknown>;
+    options?: CookieOptions;
   }>,
 ): Promise<string> {
   const {

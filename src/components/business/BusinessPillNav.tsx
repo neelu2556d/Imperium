@@ -16,6 +16,7 @@ const PILLS: Pill[] = [
   { href: "/business/sales", label: "Sales" },
   { href: "/business/stock", label: "Stock" },
   { href: "/business/collections", label: "Collections" },
+  { href: "/business/catalogue", label: "Catalogue" },
   { href: "/business/parties", label: "Parties" },
   { href: "/business/reports", label: "Reports" },
   { href: "/business/imperium", label: "Imperium" },

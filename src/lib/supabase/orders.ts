@@ -65,6 +65,10 @@ export interface SalesRow extends OrderRow {
 
 /** Full pricing breakdown for the order detail sheet. */
 export interface OrderDetail extends OrderRow {
+  /** FK to the lot the order is on, or null once the lot is deleted. */
+  lotId: string | null;
+  partyId: string | null;
+  itemId: string | null;
   topPerColour: number;
   bottomPerColour: number;
   dupattaPerColour: number;
@@ -121,6 +125,8 @@ export interface RateCard {
 }
 
 export interface NewOrderInput {
+  /** YYYY-MM-DD; defaults to today when omitted. */
+  orderDate?: string;
   lotId: string;
   itemId: string | null;
   itemName: string;
@@ -319,6 +325,9 @@ export async function fetchOrderDetail(
 
     return {
       ...mapOrderRow(data),
+      lotId: data.lot_id ? String(data.lot_id) : null,
+      partyId: data.party_id ? String(data.party_id) : null,
+      itemId: data.item_id ? String(data.item_id) : null,
       topPerColour: num(data.top_metres_per_colour),
       bottomPerColour: num(data.bottom_metres_per_colour),
       dupattaPerColour: num(data.dupatta_metres_per_colour),
@@ -531,7 +540,7 @@ export async function createOrder(
   input: NewOrderInput
 ): Promise<SaveOrderResult> {
   const userId = await ensureAnonymousSession();
-  const orderDate = localISODate(new Date());
+  const orderDate = input.orderDate || localISODate(new Date());
   const dueDate = computeDueDate(orderDate, input.paymentDays);
   const totals = computeTotals(input);
 
@@ -704,7 +713,6 @@ export async function fetchCollectionsRows(): Promise<CollectionRow[]> {
       .order("order_date", { ascending: true });
     if (error) throw error;
 
-    const now = new Date();
     const rows = (data ?? []) as unknown as Array<Record<string, unknown>>;
     return rows.map((r) => {
       const netPayable = num(r.net_payable);
@@ -800,16 +808,8 @@ export async function createPayment(
 
   const netPayable = num(orderData.net_payable);
   const currentReceived = num(orderData.amount_received);
-  const cdPercent = num(orderData.cd_percent);
   const newReceived = currentReceived + input.amountReceived;
   const balance = netPayable - newReceived;
-
-  // Calculate CD deduction if applied
-  let cdDeduction = 0;
-  if (input.cdApplied && cdPercent > 0) {
-    cdDeduction = input.amountReceived * (cdPercent / 100);
-  }
-  const netReceivedAfterCD = input.amountReceived - cdDeduction;
 
   // Determine new status
   let newStatus: "paid" | "partial" | "pending" = "pending";
@@ -862,20 +862,45 @@ export async function createPayment(
 // ---------------------------------------------------------------------------
 
 export interface UpdateOrderInput {
-  paymentStatus?: PaymentStatus;
-  amountReceived?: number;
-  discountPercent?: number;
-  gstApplicable?: boolean;
-  paymentDays?: number;
+  orderDate?: string;
+  partyId?: string;
+  partyName?: string;
+  lotId?: string;
+  itemId?: string | null;
+  itemName?: string;
+  dNo?: string;
+  topPerColour?: number;
+  bottomPerColour?: number;
+  dupattaPerColour?: number;
+  numColours?: number;
   topRate?: number;
   bottomRate?: number;
   dupattaRate?: number;
+  discountPercent?: number;
+  gstApplicable?: boolean;
+  cdPercent?: number;
+  paymentDays?: number;
+  paymentStatus?: PaymentStatus;
+  amountReceived?: number;
 }
 
 /**
- * Updates an existing order's editable fields. Returns the new payment status
- * (which may auto-transition to "paid" when amount_received reaches net_payable).
- * Only the supplied fields are changed — omitted fields keep their current values.
+ * Updates an existing order. Returns the new payment status (which may
+ * auto-transition when amount_received reaches net_payable), or null when the
+ * status is unchanged.
+ *
+ * Only the supplied fields are changed — omitted fields keep their current
+ * values. When any pricing input is present (quantities, colours, rates,
+ * discount, GST, CD, payment days, order date), the whole pricing breakdown is
+ * recomputed via {@link computeTotals} and the due date recomputed from the
+ * effective order date + payment days, so stored numbers always match the
+ * inputs. Denormalised party/item copies are rewritten whenever those change.
+ *
+ * Payment status rule: if `amountReceived` was edited, the status is recomputed
+ * from the post-write balance (paid/partial/pending) and wins over an explicit
+ * status. Otherwise an explicit status is honoured as-is; a pricing change that
+ * actually moves net_payable (with no explicit status) also recomputes the
+ * status from the balance.
  */
 export async function updateOrder(
   orderId: string,
@@ -886,33 +911,113 @@ export async function updateOrder(
   const updates: Record<string, unknown> = {};
   const now = new Date().toISOString();
 
+  // Denormalised copies — rewrite whenever the source fields change.
+  if (input.partyId !== undefined) updates.party_id = input.partyId;
+  if (input.partyName !== undefined)
+    updates.party_name = input.partyName.trim() || null;
+  if (input.lotId !== undefined) updates.lot_id = input.lotId || null;
+  if (input.itemId !== undefined) updates.item_id = input.itemId;
+  if (input.itemName !== undefined)
+    updates.item_name = input.itemName.trim() || null;
+  if (input.dNo !== undefined) updates.d_no = input.dNo.trim() || null;
+  if (input.orderDate !== undefined) updates.order_date = input.orderDate;
   if (input.paymentStatus !== undefined) updates.payment_status = input.paymentStatus;
   if (input.amountReceived !== undefined) updates.amount_received = input.amountReceived;
-  if (input.discountPercent !== undefined) {
-    updates.discount_percent = input.discountPercent;
-  }
-  if (input.gstApplicable !== undefined) {
-    updates.gst_applicable = input.gstApplicable;
-  }
-  if (input.paymentDays !== undefined) {
-    updates.payment_days = input.paymentDays;
-    // Recompute due date when payment days change
-    const { data } = await supabase
+
+  // Pricing recompute — fires when any quantity/rate/term field is present.
+  const pricingChanged =
+    input.topPerColour !== undefined ||
+    input.bottomPerColour !== undefined ||
+    input.dupattaPerColour !== undefined ||
+    input.numColours !== undefined ||
+    input.topRate !== undefined ||
+    input.bottomRate !== undefined ||
+    input.dupattaRate !== undefined ||
+    input.discountPercent !== undefined ||
+    input.gstApplicable !== undefined ||
+    input.cdPercent !== undefined ||
+    input.paymentDays !== undefined ||
+    input.orderDate !== undefined;
+
+  // True when a recompute actually moved net_payable (so a date-only edit with
+  // unchanged pricing never trips the balance-based status rule).
+  let netPayableMoved = false;
+
+  if (pricingChanged) {
+    // Merge with the stored row so omitted pricing fields keep their values.
+    const { data: base, error: baseError } = await supabase
       .from("orders")
-      .select("order_date")
+      .select("*")
       .eq("user_id", userId)
       .eq("id", orderId)
       .maybeSingle();
-    if (data?.order_date) {
-      updates.due_date = computeDueDate(
-        String(data.order_date),
-        input.paymentDays
-      );
-    }
+    if (baseError || !base) throw baseError ?? new Error("Order not found");
+
+    const eff = <T,>(v: T | undefined, fb: T): T => (v === undefined ? fb : v);
+    const topPerColour = eff(input.topPerColour, num(base.top_metres_per_colour));
+    const bottomPerColour = eff(
+      input.bottomPerColour,
+      num(base.bottom_metres_per_colour)
+    );
+    const dupattaPerColour = eff(
+      input.dupattaPerColour,
+      num(base.dupatta_metres_per_colour)
+    );
+    const numColours = eff(input.numColours, num(base.num_colours) || 1);
+    const topRate = eff(input.topRate, num(base.top_rate));
+    const bottomRate = eff(input.bottomRate, num(base.bottom_rate));
+    const dupattaRate = eff(input.dupattaRate, num(base.dupatta_rate));
+    const discountPercent = eff(input.discountPercent, num(base.discount_percent));
+    const gstApplicable = eff(input.gstApplicable, Boolean(base.gst_applicable));
+    const cdPercent = eff(input.cdPercent, num(base.cd_percent));
+    const paymentDays = eff(input.paymentDays, num(base.payment_days) || 45);
+    const orderDate = eff(input.orderDate, String(base.order_date ?? ""));
+
+    const totals = computeTotals({
+      topPerColour,
+      bottomPerColour,
+      dupattaPerColour,
+      numColours,
+      topRate,
+      bottomRate,
+      dupattaRate,
+      discountPercent,
+      gstApplicable,
+      cdPercent,
+    });
+
+    netPayableMoved =
+      Math.abs(num(base.net_payable) - totals.netPayable) > 0.005;
+
+    Object.assign(updates, {
+      top_metres_per_colour: topPerColour,
+      bottom_metres_per_colour: bottomPerColour,
+      dupatta_metres_per_colour: dupattaPerColour,
+      num_colours: numColours,
+      top_total_metres: totals.topTotalMetres,
+      bottom_total_metres: totals.bottomTotalMetres,
+      dupatta_total_metres: totals.dupattaTotalMetres,
+      total_metres: totals.totalMetres,
+      top_rate: topRate,
+      bottom_rate: bottomRate,
+      dupatta_rate: dupattaRate,
+      top_amount: totals.topAmount,
+      bottom_amount: totals.bottomAmount,
+      dupatta_amount: totals.dupattaAmount,
+      subtotal: totals.subtotal,
+      discount_percent: discountPercent,
+      discount_amount: totals.discountAmount,
+      after_discount: totals.afterDiscount,
+      gst_applicable: gstApplicable,
+      gst_amount: totals.gstAmount,
+      total_amount: totals.totalAmount,
+      cd_percent: cdPercent,
+      cd_amount: totals.cdAmount,
+      net_payable: totals.netPayable,
+      payment_days: paymentDays,
+      due_date: computeDueDate(orderDate, paymentDays),
+    });
   }
-  if (input.topRate !== undefined) updates.top_rate = input.topRate;
-  if (input.bottomRate !== undefined) updates.bottom_rate = input.bottomRate;
-  if (input.dupattaRate !== undefined) updates.dupatta_rate = input.dupattaRate;
 
   if (Object.keys(updates).length === 0) return { newStatus: null };
 
@@ -923,12 +1028,16 @@ export async function updateOrder(
     .update(updates)
     .eq("user_id", userId)
     .eq("id", orderId);
-
   if (error) throw error;
 
-  // If amount was updated, auto-recalculate payment status
+  // Payment status: amount edits always win (recompute from the balance);
+  // otherwise a net_payable move with no explicit status also recomputes.
+  const shouldRecomputeStatus =
+    input.amountReceived !== undefined ||
+    (input.paymentStatus === undefined && netPayableMoved);
+
   let newStatus: PaymentStatus | null = null;
-  if (input.amountReceived !== undefined) {
+  if (shouldRecomputeStatus) {
     const { data: refreshed } = await supabase
       .from("orders")
       .select("net_payable, amount_received, payment_status")
@@ -939,17 +1048,16 @@ export async function updateOrder(
       const netPayable = num(refreshed.net_payable);
       const amountReceived = num(refreshed.amount_received);
       const balance = netPayable - amountReceived;
-      if (balance <= 0) {
-        newStatus = "paid";
-      } else if (amountReceived > 0) {
-        newStatus = "partial";
-      }
-      if (newStatus && newStatus !== String(refreshed.payment_status)) {
+      newStatus =
+        balance <= 0 ? "paid" : amountReceived > 0 ? "partial" : "pending";
+      if (newStatus !== String(refreshed.payment_status)) {
         await supabase
           .from("orders")
           .update({ payment_status: newStatus, updated_at: now })
           .eq("user_id", userId)
           .eq("id", orderId);
+      } else {
+        newStatus = null;
       }
     }
   }

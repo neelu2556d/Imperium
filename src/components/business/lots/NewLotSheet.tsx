@@ -21,6 +21,14 @@ const toNum = (v: string): number => {
   return Number.isFinite(n) && n >= 0 ? n : 0;
 };
 
+/** Local YYYY-MM-DD (matches how lots.date_arrived is stored). */
+function localISODate(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
 function readAsDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -77,6 +85,7 @@ export default function NewLotSheet({
   const [photo, setPhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [dNo, setDNo] = useState("");
+  const [dateArrived, setDateArrived] = useState(() => localISODate(new Date()));
 
   // Step 2
   const [items, setItems] = useState<ItemMasterEntry[]>([]);
@@ -182,6 +191,7 @@ export default function NewLotSheet({
         dNo,
         designPhoto: photo,
         lotReport: report,
+        dateArrived,
         topMetres: toNum(top),
         bottomMetres: toNum(bottom),
         dupattaMetres: toNum(dupatta),
@@ -299,6 +309,20 @@ export default function NewLotSheet({
                   data-no-vitality
                   style={inputFull}
                 />
+              </Field>
+
+              <Field label="Date arrived">
+                <input
+                  type="date"
+                  value={dateArrived}
+                  onChange={(e) => setDateArrived(e.target.value)}
+                  className="mono w-full"
+                  data-no-vitality
+                  style={inputFull}
+                />
+                <p className="mt-1.5 text-[0.72rem] text-muted">
+                  Back-dating an arrival means it will be aged from this date.
+                </p>
               </Field>
 
               <button type="button" className="btn-primary w-full" onClick={() => setStep(2)}>

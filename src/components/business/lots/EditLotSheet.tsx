@@ -88,18 +88,24 @@ export default function EditLotSheet({
 
   const [items, setItems] = useState<ItemMasterEntry[]>([]);
   const [itemQuery, setItemQuery] = useState(lot.itemName);
-  const [itemId, setItemId] = useState<string | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [dNo, setDNo] = useState(lot.dNo);
   const [photo, setPhoto] = useState<File | null | undefined>(undefined);
   const [photoPreview, setPhotoPreview] = useState<string | null>(
     lot.designPhotoUrl ?? null
   );
+  const [dateArrived, setDateArrived] = useState(lot.dateArrived);
+  const [topOpening, setTopOpening] = useState(String(lot.top.opening));
+  const [bottomOpening, setBottomOpening] = useState(String(lot.bottom.opening));
+  const [dupattaOpening, setDupattaOpening] = useState(String(lot.dupatta.opening));
   const [topCost, setTopCost] = useState("");
   const [bottomCost, setBottomCost] = useState("");
   const [dupattaCost, setDupattaCost] = useState("");
   const [threshold, setThreshold] = useState(String(lot.threshold));
   const [status, setStatus] = useState<LotStatus>(lot.status);
+  // Only sent to updateLot when the user actively changed it — otherwise a
+  // stock/date edit recomputes the status automatically.
+  const [statusTouched, setStatusTouched] = useState(false);
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -142,11 +148,15 @@ export default function EditLotSheet({
         itemName: itemQuery.trim() || undefined,
         dNo: dNo !== lot.dNo ? dNo : undefined,
         designPhoto: photo ?? undefined,
+        dateArrived,
+        topOpeningStock: topOpening.trim() ? toNum(topOpening) : undefined,
+        bottomOpeningStock: bottomOpening.trim() ? toNum(bottomOpening) : undefined,
+        dupattaOpeningStock: dupattaOpening.trim() ? toNum(dupattaOpening) : undefined,
         topCost: topCost.trim() ? toNum(topCost) : undefined,
         bottomCost: bottomCost.trim() ? toNum(bottomCost) : undefined,
         dupattaCost: dupattaCost.trim() ? toNum(dupattaCost) : undefined,
         threshold: toNum(threshold),
-        status,
+        ...(statusTouched ? { status } : {}),
       });
       pushToast(`${lot.itemName} updated.`);
       onSaved();
@@ -272,7 +282,6 @@ export default function EditLotSheet({
                   placeholder="Search or type"
                   onChange={(e) => {
                     setItemQuery(e.target.value);
-                    setItemId(null);
                     setPickerOpen(true);
                   }}
                   onFocus={() => setPickerOpen(true)}
@@ -299,7 +308,6 @@ export default function EditLotSheet({
                             className="w-full border-0 bg-transparent px-3 py-2.5 text-left text-sm text-fg hover:bg-white/[0.05]"
                             onMouseDown={() => {
                               setItemQuery(i.itemName);
-                              setItemId(i.id);
                               setPickerOpen(false);
                             }}
                           >
@@ -314,10 +322,7 @@ export default function EditLotSheet({
                             data-no-vitality
                             className="w-full border-0 bg-transparent px-3 py-2.5 text-left text-sm hover:bg-white/[0.05]"
                             style={{ color: "var(--accent)" }}
-                            onMouseDown={() => {
-                              setItemId(null);
-                              setPickerOpen(false);
-                            }}
+                            onMouseDown={() => setPickerOpen(false)}
                           >
                             Use &ldquo;{itemQuery.trim()}&rdquo;
                           </button>
@@ -340,6 +345,52 @@ export default function EditLotSheet({
                 style={inputFull}
               />
             </Field>
+
+            {/* Date arrived */}
+            <Field label="Date arrived">
+              <input
+                type="date"
+                value={dateArrived}
+                onChange={(e) => setDateArrived(e.target.value)}
+                className="mono w-full"
+                data-no-vitality
+                style={inputFull}
+              />
+            </Field>
+
+            {/* Opening stock */}
+            <div>
+              <p className="mono mb-2 text-[0.62rem] uppercase tracking-[0.14em] text-muted">
+                Opening stock (metres)
+              </p>
+              <div className="grid grid-cols-3 gap-3">
+                {(
+                  [
+                    ["Top", topOpening, setTopOpening],
+                    ["Bottom", bottomOpening, setBottomOpening],
+                    ["Dupatta", dupattaOpening, setDupattaOpening],
+                  ] as Array<[string, string, (v: string) => void]>
+                ).map(([label, value, set]) => (
+                  <Field key={label} label={label}>
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      min={0}
+                      value={value}
+                      placeholder="—"
+                      onChange={(e) => set(e.target.value)}
+                      className="mono w-full text-center tabular-nums"
+                      data-no-vitality
+                      style={inputFull}
+                    />
+                  </Field>
+                ))}
+              </div>
+              <p className="mt-1.5 text-[0.72rem] leading-snug text-muted">
+                The metres received at arrival. Editing this re-balances
+                remaining stock and may change the lot&rsquo;s status.
+              </p>
+            </div>
 
             {/* Cost prices */}
             <div>
@@ -394,7 +445,10 @@ export default function EditLotSheet({
                       type="button"
                       data-no-vitality
                       aria-pressed={active}
-                      onClick={() => setStatus(key)}
+                      onClick={() => {
+                        setStatus(key);
+                        setStatusTouched(true);
+                      }}
                       className="rounded-full border px-2.5 py-1.5 text-[0.72rem] font-medium transition-colors"
                       style={
                         active

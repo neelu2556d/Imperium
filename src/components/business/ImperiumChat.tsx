@@ -124,19 +124,6 @@ export default function ImperiumChat() {
     setInput("");
   }, []);
 
-  const handlePartySelect = useCallback(
-    (party: PartyRow) => {
-      setPartySearch(party.partyName);
-      setPartySelected(true);
-      setPartyDropdownOpen(false);
-
-      // Auto-fire the pre-visit API call.
-      void sendPartyBrief(party.partyName);
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    []
-  );
-
   const sendPartyBrief = useCallback(
     async (partyName: string) => {
       if (sending) return;
@@ -186,6 +173,19 @@ export default function ImperiumChat() {
       }
     },
     [sending]
+  );
+
+  const handlePartySelect = useCallback(
+    (party: PartyRow) => {
+      setPartySearch(party.partyName);
+      setPartySelected(true);
+      setPartyDropdownOpen(false);
+
+      // Auto-fire the pre-visit API call.
+      void sendPartyBrief(party.partyName);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [sendPartyBrief]
   );
 
   const send = useCallback(async () => {

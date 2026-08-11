@@ -181,16 +181,22 @@ export default function NewOrderScreen() {
     [orderDate, paymentDays]
   );
 
-  const canSave =
-    !!lotId &&
-    !!party &&
-    totals.totalMetres > 0 &&
-    !saving;
-
   const save = async () => {
-    if (!canSave || !selectedLot || !party) return;
-    setSaving(true);
+    if (saving) return;
     setError(null);
+    if (!lotId || !selectedLot) {
+      setError("Pick an item and a lot first.");
+      return;
+    }
+    if (!party) {
+      setError("Pick a party first.");
+      return;
+    }
+    if (totals.totalMetres <= 0) {
+      setError("Enter a quantity (metres) to log the order.");
+      return;
+    }
+    setSaving(true);
     try {
       const result = await createOrder({
         orderDate,
@@ -369,7 +375,7 @@ export default function NewOrderScreen() {
           <button
             type="button"
             className="btn-primary w-full"
-            disabled={!canSave}
+            disabled={saving}
             onClick={save}
           >
             {saving ? "Logging…" : "Log Order →"}

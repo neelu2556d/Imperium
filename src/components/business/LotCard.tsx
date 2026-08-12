@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { MoreVertical, Pencil, Trash2 } from "lucide-react";
+import { MoreVertical, Pencil, Trash2, CheckCheck } from "lucide-react";
 import type { LotStatus, LotStock } from "@/lib/supabase/business";
 
 const metres = (n: number): string =>
@@ -57,12 +57,14 @@ export default function LotCard({
   onOpen,
   onEdit,
   onDelete,
+  onClear,
 }: {
   lot: LotStock;
   showSold?: boolean;
   onOpen?: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
+  onClear?: () => void;
 }) {
   const components: Array<[string, number]> = [
     ["Top", lot.top.remaining],
@@ -88,7 +90,7 @@ export default function LotCard({
       }
     : {};
 
-  const actionsVisible = Boolean(onEdit || onDelete);
+  const actionsVisible = Boolean(onEdit || onDelete || onClear);
 
   return (
     <li
@@ -123,7 +125,9 @@ export default function LotCard({
           ) : showSold ? (
             <StatusBadge status={lot.status} />
           ) : null}
-          {actionsVisible && <ActionMenu onEdit={onEdit} onDelete={onDelete} />}
+          {actionsVisible && (
+            <ActionMenu onEdit={onEdit} onDelete={onDelete} onClear={onClear} />
+          )}
         </div>
       </div>
 
@@ -165,9 +169,11 @@ export default function LotCard({
 function ActionMenu({
   onEdit,
   onDelete,
+  onClear,
 }: {
   onEdit?: () => void;
   onDelete?: () => void;
+  onClear?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -219,6 +225,22 @@ function ActionMenu({
             >
               <Pencil size={14} aria-hidden />
               Edit
+            </button>
+          )}
+          {onClear && (
+            <button
+              type="button"
+              data-no-vitality
+              onClick={(e) => {
+                e.stopPropagation();
+                setOpen(false);
+                onClear();
+              }}
+              className="flex w-full items-center gap-2.5 border-0 bg-transparent px-4 py-2.5 text-left text-sm hover:bg-white/[0.05]"
+              style={{ color: "var(--accent)" }}
+            >
+              <CheckCheck size={14} aria-hidden />
+              Clear Stock
             </button>
           )}
           {onDelete && (

@@ -165,31 +165,10 @@ function BriefingCard({ initial }: { initial: string | null }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Auto-generate morning briefing on mount if none exists for today. The
-  // deferred tick (not the effect body) owns `setBusy`, so the setter runs after
-  // the synchronous render cycle — and `busy` is left out of the deps, so the
-  // busy flip can't re-trigger the auto-fire.
-  useEffect(() => {
-    if (initial) return;
-    let cancelled = false;
-    void (async () => {
-      await Promise.resolve();
-      if (cancelled) return;
-      setBusy(true);
-      try {
-        const reply = await generateBriefing();
-        if (!cancelled) setText(reply);
-      } catch {
-        /* non-fatal — user can tap Generate manually */
-      } finally {
-        if (!cancelled) setBusy(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [initial]);
-
+  // The briefing is manual-only: it's read (from today's already-generated
+  // entry, if any) on mount, but never auto-generated. The user taps
+  // Generate/Regenerate to produce one — so opening the Overview never spends
+  // an API call.
   const onGenerate = async () => {
     setBusy(true);
     setError(null);

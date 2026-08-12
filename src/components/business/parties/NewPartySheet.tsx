@@ -16,6 +16,7 @@ const inputStyle = {
  * - Area (optional)
  * - City (optional)
  * - Default payment days (number, default 45)
+ * - Discount % (number, default 0)
  * - CD % (number, default 0)
  * - GST preference (toggle: Non-GST / GST)
  * - Notes (optional)
@@ -41,6 +42,7 @@ export default function NewPartySheet({
   const [area, setArea] = useState("");
   const [city, setCity] = useState("");
   const [defaultPaymentDays, setDefaultPaymentDays] = useState("45");
+  const [defaultDiscountPercent, setDefaultDiscountPercent] = useState("0");
   const [cdPercent, setCdPercent] = useState("0");
   const [gstPreference, setGstPreference] = useState<"gst" | "non_gst">("non_gst");
   const [notes, setNotes] = useState("");
@@ -68,6 +70,7 @@ export default function NewPartySheet({
         area: area.trim() || null,
         city: city.trim() || null,
         defaultPaymentDays: Number(defaultPaymentDays) || 45,
+        defaultDiscountPercent: Number(defaultDiscountPercent) || 0,
         cdPercent: Number(cdPercent) || 0,
         gstPreference,
         notes: notes.trim() || null,
@@ -164,9 +167,9 @@ export default function NewPartySheet({
             </Field>
           </div>
 
-          {/* Payment days and CD */}
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Default payment days">
+          {/* Payment days, discount and CD */}
+          <div className="grid grid-cols-3 gap-3">
+            <Field label="Payment days">
               <input
                 type="number"
                 inputMode="numeric"
@@ -177,8 +180,24 @@ export default function NewPartySheet({
                 data-no-vitality
                 style={inputFull}
               />
-              <p className="mt-1.5 text-[0.72rem] text-muted">
-                Days to pay invoice
+              <p className="mt-1.5 text-[0.68rem] leading-tight text-muted">
+                Days to pay
+              </p>
+            </Field>
+            <Field label="Discount %">
+              <input
+                type="number"
+                inputMode="decimal"
+                min={0}
+                max={100}
+                value={defaultDiscountPercent}
+                onChange={(e) => setDefaultDiscountPercent(e.target.value)}
+                className="mono w-full text-center tabular-nums"
+                data-no-vitality
+                style={inputFull}
+              />
+              <p className="mt-1.5 text-[0.68rem] leading-tight text-muted">
+                Trade discount
               </p>
             </Field>
             <Field label="CD %">
@@ -193,8 +212,8 @@ export default function NewPartySheet({
                 data-no-vitality
                 style={inputFull}
               />
-              <p className="mt-1.5 text-[0.72rem] text-muted">
-                Cash discount percentage
+              <p className="mt-1.5 text-[0.68rem] leading-tight text-muted">
+                Cash discount
               </p>
             </Field>
           </div>

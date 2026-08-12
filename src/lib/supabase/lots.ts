@@ -509,6 +509,23 @@ export async function updateLot(
   if (error) throw error;
 }
 
+/**
+ * Marks a lot as fully sold out from the user's point of view — flips its
+ * status to 'cleared' regardless of what the remaining-stock math says (a lot
+ * can hold extra metres the user chooses to move/return, or the stock figures
+ * are a single-colour minimum and the last colour is gone). The lot row keeps
+ * its opening/sold figures; only the status changes. Throws on failure.
+ */
+export async function clearLot(lotId: string): Promise<void> {
+  const userId = await ensureAnonymousSession();
+  const { error } = await supabase
+    .from("lots")
+    .update({ status: "cleared" })
+    .eq("user_id", userId)
+    .eq("id", lotId);
+  if (error) throw error;
+}
+
 // ---------------------------------------------------------------------------
 // Writers — delete
 // ---------------------------------------------------------------------------

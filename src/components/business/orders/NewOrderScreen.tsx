@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Minus, Plus } from "lucide-react";
+import { ArrowLeft, Minus, Plus, X } from "lucide-react";
 import { pushToast } from "@/lib/toast";
 import { useCountUp } from "@/lib/motion";
 import BottomSheet from "@/components/vitals/BottomSheet";
@@ -19,6 +19,7 @@ import {
   type ActiveLotOption,
   type OrderTotals,
   type PartyEntry,
+  type SaveOrderResult,
 } from "@/lib/supabase/orders";
 import { ddmmyyyy, metres, rupees } from "./orderFormat";
 
@@ -43,14 +44,37 @@ const inputFull = {
   borderRadius: "var(--radius-sm)",
 } as const;
 
+/** One committed design line in a multi-design bill. All inputs are snapshotted
+ *  from the composer when "Add to bill" is pressed; pricing is re-derived live
+ *  against the bill's shared terms (discount / GST / CD). */
+interface DesignDraft {
+  key: number;
+  lotId: string;
+  itemId: string | null;
+  itemName: string;
+  dNo: string;
+  topPer: string;
+  bottomPer: string;
+  dupattaPer: string;
+  numColours: number;
+  topRate: string;
+  bottomRate: string;
+  dupattaRate: string;
+}
+
 /**
  * /business/orders/new — the full-screen order entry form. Item + lot picker
  * (lots filtered to the selected item, remaining stock shown), party picker
  * with inline add, per-colour quantities with a colour stepper, live-computed
  * metre totals, editable rates auto-filled from a saved rate card, terms
- * (discount / GST / payment days), and a live invoice preview. On save it
- * inserts the order (the lot-status trigger fires in Postgres), reconciles the
- * rate card, toasts, and routes back to the list.
+ * (discount / GST / payment days), and a live invoice preview.
+ *
+ * Supports a multi-design bill: the date, party, and terms apply to the whole
+ * bill; the item/lot, per-colour metres, colour count and rates are composed one
+ * design at a time and committed with "Add to bill". On save it creates one
+ * order row per design (the lot-status trigger fires in Postgres), reconciles
+ * each rate card, toasts the bill total, and routes back to the list. With no
+ * committed designs it logs a single order exactly as before.
  */
 export default function NewOrderScreen() {
   const router = useRouter();
@@ -88,11 +112,18 @@ export default function NewOrderScreen() {
   const [gst, setGst] = useState(false);
   const [paymentDays, setPaymentDays] = useState("45");
 
+  // Committed design lines in the bill. The date / party / terms are shared
+  // bill-level inputs; each draft snapshots its own item/lot, quantities,
+  // colour count and rates from the composer when "Add to bill" is pressed.
+  const [designs, setDesigns] = useState<DesignDraft[]>([]);
+  const designKey = useRef(0);
+
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [rateCardPrompt, setRateCardPrompt] = useState<{
     orderId: string;
     toast: string;
+    design?: DesignDraft;
   } | null>(null);
 
   useEffect(() => {
@@ -124,12 +155,13 @@ export default function NewOrderScreen() {
   );
 
   // Picking a party applies its terms immediately (GST preference + payment
-  // days); a fresh pick also clears the saved-rates badge until the rate-card
-  // lookup below resolves.
+  // days + trade discount); a fresh pick also clears the saved-rates badge
+  // until the rate-card lookup below resolves.
   const applyParty = (p: PartyEntry) => {
     setParty(p);
     setGst(p.gstPreference === "gst");
     setPaymentDays(String(p.defaultPaymentDays || 45));
+    setDiscount(String(p.defaultDiscountPercent ?? 0));
     setRatesApplied(false);
   };
 
@@ -181,52 +213,171 @@ export default function NewOrderScreen() {
     [orderDate, paymentDays]
   );
 
-  const save = async () => {
-    if (saving) return;
+  // Per-design pricing with the bill's shared terms, then the bill roll-up.
+  // Each design is stored as its own order row, so the bill total is the sum of
+  // the per-design net payables — matches exactly what createOrder persists.
+  const designTotals = useMemo(
+    () =>
+      designs.map((d) =>
+        computeTotals({
+          topPerColour: toNum(d.topPer),
+          bottomPerColour: toNum(d.bottomPer),
+          dupattaPerColour: toNum(d.dupattaPer),
+          numColours: d.numColours,
+          topRate: toNum(d.topRate),
+          bottomRate: toNum(d.bottomRate),
+          dupattaRate: toNum(d.dupattaRate),
+          discountPercent: toNum(discount),
+          gstApplicable: gst,
+          cdPercent: party?.cdPercent ?? 0,
+        })
+      ),
+    [designs, discount, gst, party]
+  );
+
+  const bill = useMemo(() => {
+    const sum = (f: (t: OrderTotals) => number) =>
+      designTotals.reduce((s, t) => s + f(t), 0);
+    return {
+      totalMetres: sum((t) => t.totalMetres),
+      subtotal: sum((t) => t.subtotal),
+      discountAmount: sum((t) => t.discountAmount),
+      afterDiscount: sum((t) => t.afterDiscount),
+      gstAmount: sum((t) => t.gstAmount),
+      totalAmount: sum((t) => t.totalAmount),
+      cdAmount: sum((t) => t.cdAmount),
+      netPayable: sum((t) => t.netPayable),
+    };
+  }, [designTotals]);
+
+  /** Commits the composer's current design into the bill, then resets the
+   *  composer for the next one. Shared bill terms (date / party / terms) stay. */
+  const addDesign = () => {
     setError(null);
     if (!lotId || !selectedLot) {
       setError("Pick an item and a lot first.");
       return;
     }
+    if (totals.totalMetres <= 0) {
+      setError("Enter a quantity (metres) for this design.");
+      return;
+    }
+    designKey.current += 1;
+    const draft: DesignDraft = {
+      key: designKey.current,
+      lotId: selectedLot.lotId,
+      itemId: selectedLot.itemId ?? itemId,
+      itemName: selectedLot.itemName || itemName.trim(),
+      dNo: selectedLot.dNo,
+      topPer,
+      bottomPer,
+      dupattaPer,
+      numColours,
+      topRate,
+      bottomRate,
+      dupattaRate,
+    };
+    setDesigns((prev) => [...prev, draft]);
+    setItemId(null);
+    setItemName("");
+    setLotId(null);
+    setTopPer("");
+    setBottomPer("");
+    setDupattaPer("");
+    setTopRate("");
+    setBottomRate("");
+    setDupattaRate("");
+    setNumColours(1);
+    setRatesApplied(false);
+  };
+
+  const removeDesign = (key: number) =>
+    setDesigns((prev) => prev.filter((d) => d.key !== key));
+
+  /** Maps a committed design draft to the createOrder input (bill terms shared). */
+  const toInput = (d: DesignDraft) => ({
+    orderDate,
+    lotId: d.lotId,
+    itemId: d.itemId,
+    itemName: d.itemName,
+    dNo: d.dNo,
+    partyId: party!.id,
+    partyName: party!.partyName,
+    topPerColour: toNum(d.topPer),
+    bottomPerColour: toNum(d.bottomPer),
+    dupattaPerColour: toNum(d.dupattaPer),
+    numColours: d.numColours,
+    topRate: toNum(d.topRate),
+    bottomRate: toNum(d.bottomRate),
+    dupattaRate: toNum(d.dupattaRate),
+    discountPercent: toNum(discount),
+    gstApplicable: gst,
+    cdPercent: party!.cdPercent,
+    paymentDays: toNum(paymentDays),
+  });
+
+  const save = async () => {
+    if (saving) return;
+    setError(null);
     if (!party) {
       setError("Pick a party first.");
       return;
     }
-    if (totals.totalMetres <= 0) {
-      setError("Enter a quantity (metres) to log the order.");
-      return;
+
+    // With committed designs, log the whole bill. Otherwise fall back to the
+    // composer as a single design (today's behaviour).
+    let drafts: DesignDraft[] = designs;
+    if (drafts.length === 0) {
+      if (!lotId || !selectedLot) {
+        setError("Pick an item and a lot first.");
+        return;
+      }
+      if (totals.totalMetres <= 0) {
+        setError("Enter a quantity (metres) to log the order.");
+        return;
+      }
+      drafts = [
+        {
+          key: 0,
+          lotId: selectedLot.lotId,
+          itemId: selectedLot.itemId ?? itemId,
+          itemName: selectedLot.itemName || itemName.trim(),
+          dNo: selectedLot.dNo,
+          topPer,
+          bottomPer,
+          dupattaPer,
+          numColours,
+          topRate,
+          bottomRate,
+          dupattaRate,
+        },
+      ];
     }
+
     setSaving(true);
     try {
-      const result = await createOrder({
-        orderDate,
-        lotId: selectedLot.lotId,
-        itemId: selectedLot.itemId ?? itemId,
-        itemName: selectedLot.itemName || itemName.trim(),
-        dNo: selectedLot.dNo,
-        partyId: party.id,
-        partyName: party.partyName,
-        topPerColour: toNum(topPer),
-        bottomPerColour: toNum(bottomPer),
-        dupattaPerColour: toNum(dupattaPer),
-        numColours,
-        topRate: toNum(topRate),
-        bottomRate: toNum(bottomRate),
-        dupattaRate: toNum(dupattaRate),
-        discountPercent: toNum(discount),
-        gstApplicable: gst,
-        cdPercent: party.cdPercent,
-        paymentDays: toNum(paymentDays),
-      });
+      let totalNet = 0;
+      let changed: { result: SaveOrderResult; draft: DesignDraft } | null = null;
+      for (const d of drafts) {
+        const result = await createOrder(toInput(d));
+        totalNet += result.totals.netPayable;
+        if (!changed && result.rateCardChanged && d.itemId) {
+          changed = { result, draft: d };
+        }
+      }
 
-      const toast = `Order logged — ${rupees(result.totals.netPayable)} · ${
-        party.partyName
-      }${selectedLot.dNo ? ` · ${selectedLot.dNo}` : ""}`;
+      const toast = `Bill logged — ${rupees(totalNet)} · ${party.partyName} · ${
+        drafts.length
+      } design${drafts.length === 1 ? "" : "s"}`;
 
-      // Existing rate card whose rates changed → prompt before leaving.
-      if (result.rateCardChanged && selectedLot.itemId) {
+      // An existing rate card whose rates changed → prompt before leaving.
+      if (changed) {
         setSaving(false);
-        setRateCardPrompt({ orderId: result.orderId, toast });
+        setRateCardPrompt({
+          orderId: changed.result.orderId,
+          toast,
+          design: changed.draft,
+        });
         return;
       }
 
@@ -244,13 +395,25 @@ export default function NewOrderScreen() {
   };
 
   const onUpdateRateCard = async () => {
-    if (party && selectedLot?.itemId) {
+    const d = rateCardPrompt?.design;
+    const itemId = d?.itemId ?? selectedLot?.itemId;
+    if (party && itemId) {
       try {
-        await upsertRateCard(party.id, selectedLot.itemId, {
-          topRate: toNum(topRate),
-          bottomRate: toNum(bottomRate),
-          dupattaRate: toNum(dupattaRate),
-        });
+        await upsertRateCard(
+          party.id,
+          itemId,
+          d
+            ? {
+                topRate: toNum(d.topRate),
+                bottomRate: toNum(d.bottomRate),
+                dupattaRate: toNum(d.dupattaRate),
+              }
+            : {
+                topRate: toNum(topRate),
+                bottomRate: toNum(bottomRate),
+                dupattaRate: toNum(dupattaRate),
+              }
+        );
       } catch {
         /* non-fatal — the order is already saved */
       }
@@ -343,6 +506,23 @@ export default function NewOrderScreen() {
             onDupatta={setDupattaRate}
           />
 
+          <DesignsSection designs={designs} designTotals={designTotals} onRemove={removeDesign} />
+
+          <button
+            type="button"
+            data-no-vitality
+            onClick={addDesign}
+            className="flex w-full items-center justify-center gap-2 rounded-full border px-4 py-2.5 text-sm font-medium transition-colors"
+            style={{
+              borderColor: "var(--accent)",
+              color: "var(--accent)",
+              background: "transparent",
+            }}
+          >
+            <Plus size={15} aria-hidden />
+            Add design to bill
+          </button>
+
           <TermsSection
             discount={discount}
             gst={gst}
@@ -352,19 +532,32 @@ export default function NewOrderScreen() {
             onPaymentDays={setPaymentDays}
           />
 
-          <InvoicePreview
-            totals={totals}
-            discountPercent={toNum(discount)}
-            gst={gst}
-            cdPercent={party?.cdPercent ?? 0}
-            paymentDays={toNum(paymentDays)}
-            dueDate={dueDate}
-            rates={{
-              top: toNum(topRate),
-              bottom: toNum(bottomRate),
-              dupatta: toNum(dupattaRate),
-            }}
-          />
+          {designs.length === 0 ? (
+            <InvoicePreview
+              totals={totals}
+              discountPercent={toNum(discount)}
+              gst={gst}
+              cdPercent={party?.cdPercent ?? 0}
+              paymentDays={toNum(paymentDays)}
+              dueDate={dueDate}
+              rates={{
+                top: toNum(topRate),
+                bottom: toNum(bottomRate),
+                dupatta: toNum(dupattaRate),
+              }}
+            />
+          ) : (
+            <BillPreview
+              designs={designs}
+              designTotals={designTotals}
+              bill={bill}
+              discountPercent={toNum(discount)}
+              gst={gst}
+              cdPercent={party?.cdPercent ?? 0}
+              paymentDays={toNum(paymentDays)}
+              dueDate={dueDate}
+            />
+          )}
 
           {error && (
             <p className="text-sm" style={{ color: "var(--color-danger)" }}>
@@ -378,15 +571,21 @@ export default function NewOrderScreen() {
             disabled={saving}
             onClick={save}
           >
-            {saving ? "Logging…" : "Log Order →"}
+            {saving
+              ? "Logging…"
+              : designs.length > 0
+                ? `Log ${designs.length} Design${designs.length === 1 ? "" : "s"} →`
+                : "Log Order →"}
           </button>
         </div>
       )}
 
-      {rateCardPrompt && party && selectedLot && (
+      {rateCardPrompt && party && (rateCardPrompt.design ?? selectedLot) && (
         <RateCardPrompt
           partyName={party.partyName}
-          itemName={selectedLot.itemName}
+          itemName={
+            rateCardPrompt.design?.itemName ?? selectedLot?.itemName ?? ""
+          }
           onYes={onUpdateRateCard}
           onNo={finishAfterPrompt}
           onJustThis={finishAfterPrompt}
@@ -829,6 +1028,9 @@ function PartySection({
         <p className="mono text-[0.7rem] text-muted">
           {[party.area, party.city].filter(Boolean).join(", ") || "—"} ·{" "}
           {party.defaultPaymentDays} days
+          {party.defaultDiscountPercent > 0
+            ? ` · Disc ${party.defaultDiscountPercent}%`
+            : ""}
           {party.cdPercent > 0 ? ` · CD ${party.cdPercent}%` : ""}
         </p>
       )}
@@ -1251,6 +1453,200 @@ function InvoicePreview({
         <PreviewLine
           label="Net payable"
           value={<CountUpRupees value={totals.netPayable} />}
+          strong
+        />
+        <PreviewLine label="Due date" value={ddmmyyyy(dueDate)} />
+      </div>
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Multi-design bill — committed design list + bill-level preview
+// ---------------------------------------------------------------------------
+
+function DesignsSection({
+  designs,
+  designTotals,
+  onRemove,
+}: {
+  designs: DesignDraft[];
+  designTotals: OrderTotals[];
+  onRemove: (key: number) => void;
+}) {
+  if (designs.length === 0) return null;
+  return (
+    <section className="flex flex-col gap-3 border-0 bg-transparent p-0 shadow-none" data-no-vitality>
+      <div className="flex items-center justify-between gap-3">
+        <SectionTitle>In this bill</SectionTitle>
+        <span className="mono text-[0.62rem] text-muted">{designs.length}</span>
+      </div>
+      <ul className="flex flex-col gap-2">
+        {designs.map((d, i) => {
+          const t = designTotals[i];
+          return (
+            <li
+              key={d.key}
+              className="flex items-center gap-3 rounded-xl border px-4 py-3"
+              style={{
+                borderColor: "var(--color-border)",
+                background: "var(--color-card)",
+              }}
+            >
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium text-fg">
+                  {d.itemName}
+                  {d.dNo ? (
+                    <span className="mono ml-2 text-[0.68rem] text-muted">
+                      {d.dNo}
+                    </span>
+                  ) : null}
+                </p>
+                <p className="mono text-[0.62rem] uppercase tracking-[0.12em] text-muted">
+                  {metres(t.totalMetres)} · {rupees(t.netPayable)}
+                </p>
+              </div>
+              <button
+                type="button"
+                data-no-vitality
+                aria-label={`Remove ${d.itemName}`}
+                onClick={() => onRemove(d.key)}
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-0 bg-transparent text-muted hover:bg-white/[0.05] hover:text-fg"
+              >
+                <X size={15} aria-hidden />
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
+function BillPreview({
+  designs,
+  designTotals,
+  bill,
+  discountPercent,
+  gst,
+  cdPercent,
+  paymentDays,
+  dueDate,
+}: {
+  designs: DesignDraft[];
+  designTotals: OrderTotals[];
+  bill: {
+    totalMetres: number;
+    subtotal: number;
+    discountAmount: number;
+    afterDiscount: number;
+    gstAmount: number;
+    totalAmount: number;
+    cdAmount: number;
+    netPayable: number;
+  };
+  discountPercent: number;
+  gst: boolean;
+  cdPercent: number;
+  paymentDays: number;
+  dueDate: string;
+}) {
+  return (
+    <section className="flex flex-col gap-3 border-0 bg-transparent p-0 shadow-none" data-no-vitality>
+      <SectionTitle>6 · Bill preview</SectionTitle>
+      <div
+        className="mono rounded-xl border px-4 py-4 text-[0.78rem] tabular-nums"
+        style={{
+          borderColor: "var(--color-border-strong)",
+          background: "var(--color-card)",
+        }}
+      >
+        {designs.map((d, i) => {
+          const t = designTotals[i];
+          const comps: Array<[string, number, number]> = [
+            ["Top", t.topTotalMetres, t.topAmount],
+            ["Bottom", t.bottomTotalMetres, t.bottomAmount],
+            ["Dupatta", t.dupattaTotalMetres, t.dupattaAmount],
+          ];
+          return (
+            <div key={d.key}>
+              <PreviewLine
+                label={d.itemName}
+                detail={`${d.dNo || "no D.No."} · ${d.numColours} colour${
+                  d.numColours === 1 ? "" : "s"
+                }`}
+                value={<CountUpRupees value={t.subtotal} />}
+                strong
+              />
+              {comps.map(([name, m, amount]) => (
+                <div
+                  key={name}
+                  className="flex items-baseline justify-between gap-3 py-0.5 pl-3"
+                >
+                  <span className="text-muted">{name}: {metres(m)}</span>
+                  <span className="text-muted">
+                    <CountUpRupees value={amount} />
+                  </span>
+                </div>
+              ))}
+            </div>
+          );
+        })}
+
+        <PreviewDivider />
+        <PreviewLine
+          label="Subtotal"
+          value={<CountUpRupees value={bill.subtotal} />}
+        />
+        <PreviewLine
+          label={`Discount ${discountPercent}%`}
+          value={
+            <>
+              -<CountUpRupees value={bill.discountAmount} />
+            </>
+          }
+        />
+        <PreviewLine
+          label="After discount"
+          value={<CountUpRupees value={bill.afterDiscount} />}
+        />
+        <PreviewLine
+          label={gst ? "GST 5%" : "GST"}
+          value={
+            gst ? (
+              <>
+                +<CountUpRupees value={bill.gstAmount} />
+              </>
+            ) : (
+              rupees(0)
+            )
+          }
+        />
+        <PreviewDivider />
+        <div className="flex items-baseline justify-between gap-3 py-1">
+          <span className="text-[0.7rem] uppercase tracking-[0.12em] text-muted-strong">
+            Total
+          </span>
+          <span
+            className="text-lg font-semibold"
+            style={{ color: "var(--accent)" }}
+          >
+            <CountUpRupees value={bill.totalAmount} />
+          </span>
+        </div>
+        {cdPercent > 0 && (
+          <PreviewLine
+            label={`CD ${cdPercent}% (if paid in ${paymentDays} days)`}
+            value={
+              <>
+                -<CountUpRupees value={bill.cdAmount} />
+              </>
+            }
+          />
+        )}
+        <PreviewLine
+          label="Net payable"
+          value={<CountUpRupees value={bill.netPayable} />}
           strong
         />
         <PreviewLine label="Due date" value={ddmmyyyy(dueDate)} />

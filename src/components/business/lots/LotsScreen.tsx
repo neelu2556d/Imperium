@@ -6,7 +6,7 @@ import { Plus } from "lucide-react";
 import LotCard from "@/components/business/LotCard";
 import NewLotSheet from "@/components/business/lots/NewLotSheet";
 import EditLotSheet from "@/components/business/lots/EditLotSheet";
-import { fetchAllLots, deleteLot } from "@/lib/supabase/lots";
+import { fetchAllLots, deleteLot, clearLot } from "@/lib/supabase/lots";
 import { pushToast } from "@/lib/toast";
 import type { LotStatus, LotStock } from "@/lib/supabase/business";
 
@@ -34,10 +34,12 @@ export default function LotsScreen() {
   const [filter, setFilter] = useState<Filter>("all");
   const [sheetOpen, setSheetOpen] = useState(false);
 
-  // Edit / delete state
+  // Edit / delete / clear state
   const [editLot, setEditLot] = useState<LotStock | null>(null);
   const [deleteLotId, setDeleteLotId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [clearLotId, setClearLotId] = useState<string | null>(null);
+  const [clearing, setClearing] = useState(false);
 
   const load = useCallback(() => {
     fetchAllLots().then(setLots);
@@ -69,6 +71,25 @@ export default function LotsScreen() {
 
   const deletedLot = deleteLotId
     ? lots?.find((l) => l.lotId === deleteLotId)
+    : null;
+
+  const handleClear = async () => {
+    if (!clearLotId || clearing) return;
+    setClearing(true);
+    try {
+      await clearLot(clearLotId);
+      pushToast("Lot stock cleared.");
+      setClearLotId(null);
+      load();
+    } catch {
+      pushToast("Couldn't clear the lot. Try again.");
+    } finally {
+      setClearing(false);
+    }
+  };
+
+  const clearedLot = clearLotId
+    ? lots?.find((l) => l.lotId === clearLotId)
     : null;
 
   return (
@@ -144,6 +165,11 @@ export default function LotsScreen() {
               onOpen={() => router.push(`/business/lots/${lot.lotId}`)}
               onEdit={() => setEditLot(lot)}
               onDelete={() => setDeleteLotId(lot.lotId)}
+              onClear={
+                lot.status === "cleared"
+                  ? undefined
+                  : () => setClearLotId(lot.lotId)
+              }
             />
           ))}
         </ul>
@@ -182,6 +208,17 @@ export default function LotsScreen() {
           busy={deleting}
           onConfirm={handleDelete}
           onCancel={() => setDeleteLotId(null)}
+        />
+      )}
+
+      {/* Clear-stock confirmation */}
+      {clearLotId && clearedLot && (
+        <ConfirmClear
+          title={clearedLot.itemName}
+          subtitle={clearedLot.dNo || undefined}
+          busy={clearing}
+          onConfirm={handleClear}
+          onCancel={() => setClearLotId(null)}
         />
       )}
     </div>
@@ -257,6 +294,79 @@ function ConfirmDelete({
             onClick={onConfirm}
           >
             {busy ? "Deleting…" : "Delete lot"}
+          </button>
+          <button
+            type="button"
+            data-no-vitality
+            disabled={busy}
+            onClick={onCancel}
+            className="w-full rounded-full border bg-transparent px-4 py-2.5 text-sm font-medium"
+            style={{
+              borderColor: "var(--color-border-strong)",
+              color: "var(--color-fg)",
+            }}
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ConfirmClear({
+  title,
+  subtitle,
+  busy,
+  onConfirm,
+  onCancel,
+}: {
+  title: string;
+  subtitle?: string;
+  busy: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onCancel();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onCancel]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-5">
+      <div
+        className="absolute inset-0"
+        style={{ background: "rgba(0,0,0,0.6)" }}
+        onClick={onCancel}
+        aria-hidden
+      />
+      <div
+        className="relative w-full max-w-sm rounded-2xl border p-6 shadow-xl"
+        style={{
+          borderColor: "var(--color-border-strong)",
+          background: "var(--color-bg-elevated)",
+        }}
+        role="alertdialog"
+        aria-label="Clear stock"
+      >
+        <p className="text-lg font-semibold text-fg">
+          Clear stock &ldquo;{title}&rdquo;?
+        </p>
+        <p className="mt-1.5 text-sm text-muted">
+          {subtitle ? `${subtitle} · ` : ""}This marks the lot as Cleared. You
+          can keep logging new lots; this one stops counting as active.
+        </p>
+        <div className="mt-5 flex flex-col gap-2.5">
+          <button
+            type="button"
+            className="btn-primary w-full"
+            disabled={busy}
+            onClick={onConfirm}
+          >
+            {busy ? "Clearing…" : "Clear Stock"}
           </button>
           <button
             type="button"

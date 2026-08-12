@@ -31,6 +31,7 @@ export interface PartyProfile {
   area: string | null;
   city: string | null;
   defaultPaymentDays: number;
+  defaultDiscountPercent: number;
   cdPercent: number;
   gstPreference: "gst" | "non_gst";
   notes: string | null;
@@ -106,7 +107,7 @@ export async function fetchAllParties(): Promise<PartyRow[]> {
     const { data, error } = await supabase
       .from("party_master")
       .select(
-        "id, party_name, area, city, default_payment_days, cd_percent, gst_preference"
+        "id, party_name, area, city, default_payment_days, cd_percent, gst_preference, default_discount_percent"
       )
       .eq("user_id", userId)
       .order("party_name", { ascending: true });
@@ -209,6 +210,7 @@ export async function fetchPartyProfile(
       area: (data.area as string | null) ?? null,
       city: (data.city as string | null) ?? null,
       defaultPaymentDays: num(data.default_payment_days),
+      defaultDiscountPercent: num(data.default_discount_percent),
       cdPercent: num(data.cd_percent),
       gstPreference: data.gst_preference === "gst" ? "gst" : "non_gst",
       notes: (data.notes as string | null) ?? null,
@@ -379,6 +381,7 @@ export interface PartyInput {
   area: string | null;
   city: string | null;
   defaultPaymentDays: number;
+  defaultDiscountPercent: number;
   cdPercent: number;
   gstPreference: "gst" | "non_gst";
   notes: string | null;
@@ -395,6 +398,7 @@ export async function createParty(input: PartyInput): Promise<string> {
       area: input.area?.trim() || null,
       city: input.city?.trim() || null,
       default_payment_days: input.defaultPaymentDays,
+      default_discount_percent: input.defaultDiscountPercent,
       cd_percent: input.cdPercent,
       gst_preference: input.gstPreference,
       notes: input.notes?.trim() || null,
@@ -421,6 +425,7 @@ export async function updateParty(
       area: input.area?.trim() || null,
       city: input.city?.trim() || null,
       default_payment_days: input.defaultPaymentDays,
+      default_discount_percent: input.defaultDiscountPercent,
       cd_percent: input.cdPercent,
       gst_preference: input.gstPreference,
       notes: input.notes?.trim() || null,

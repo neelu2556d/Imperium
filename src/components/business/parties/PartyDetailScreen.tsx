@@ -170,6 +170,10 @@ export default function PartyDetailScreen({
               <span className="font-medium text-fg">{party.defaultPaymentDays} days</span>
             </span>
             <span>
+              Discount:{" "}
+              <span className="font-medium text-fg">{party.defaultDiscountPercent}%</span>
+            </span>
+            <span>
               CD: <span className="font-medium text-fg">{party.cdPercent}%</span>
             </span>
             <span>

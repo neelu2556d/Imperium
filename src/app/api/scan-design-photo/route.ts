@@ -17,12 +17,16 @@ const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 const DEFAULT_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";
 
 const PROMPT =
-  "This is a photo of a dress-material fabric design. Read the design number " +
-  "printed on it — usually a number or code along the bottom edge, often " +
-  "prefixed like 'D.No:-'. Return JSON only: {d_no: string, item_name: " +
-  "string}. item_name is the dress-material item the design belongs to if it " +
-  "is visible or can be inferred, otherwise null. If the design number is not " +
-  "found return null for d_no.";
+  "This is a photo of a dress-material swatch card. The top of the card is " +
+  "only a brand header — lines like 'K.G.SONS' and 'Exclusive Dress Material' " +
+  "— IGNORE those. The two fields I need are printed below the header: " +
+  "(1) the ITEM NAME, e.g. 'Two-Tone 3 Pcs', 'Magic 3 Pcs', 'Capsule 2 Pcs' " +
+  "(typically 'Something X Pcs'); and (2) the DESIGN NUMBER, e.g. 'D.NO:-532', " +
+  "'D.NO: 545', 'D.No 689'. Return JSON only: {item_name: string, d_no: string}. " +
+  "item_name is the dress-material item line verbatim (drop nothing, e.g. keep " +
+  "'3 Pcs'), or null if it can't be read. d_no is just the number without any " +
+  "prefix (e.g. '532', '545'), or null if it can't be read. Never return the " +
+  "brand header as either field.";
 
 interface ScanResult {
   d_no: string | null;
@@ -32,6 +36,20 @@ interface ScanResult {
 const toStrOrNull = (v: unknown): string | null =>
   typeof v === "string" && v.trim() ? v.trim() : null;
 
+/** Reduces a read design number to its bare value: strips a 'D.NO', 'D.No',
+ *  'No.' style prefix and stray punctuation so 'D.NO:-532' → '532' (TT-247
+ *  stays 'TT-247'). Mirrors the tolerance the catalogue's numeric sort already
+ *  has, so the badge shows one clean number. */
+function normalizeDNo(v: unknown): string | null {
+  const s = toStrOrNull(v);
+  if (!s) return null;
+  return s
+    .replace(/^d\s*\.?\s*n[o0]\.?\s*[:#\-–—\s]*/i, "")
+    .replace(/^no\.?\s*[:#\-–—\s]*/i, "")
+    .replace(/^no\s*\d*[:#\-–—\s]*/i, "")
+    .trim();
+}
+
 /** Parses the model response, tolerating stray prose or ```json fences. */
 function extractResult(text: string): ScanResult | null {
   const trimmed = text.trim();
@@ -40,7 +58,7 @@ function extractResult(text: string): ScanResult | null {
     if (!v || typeof v !== "object" || Array.isArray(v)) return null;
     const obj = v as Record<string, unknown>;
     return {
-      d_no: toStrOrNull(obj.d_no),
+      d_no: normalizeDNo(obj.d_no),
       item_name: toStrOrNull(obj.item_name),
     };
   };

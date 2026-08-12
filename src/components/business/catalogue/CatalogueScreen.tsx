@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Camera, ImagePlus, Plus } from "lucide-react";
+import { Camera, ChevronLeft, ChevronRight, Folder, ImagePlus, Plus } from "lucide-react";
 import {
   byDNoDesc,
   fetchCataloguePhotos,
@@ -22,6 +22,7 @@ export default function CatalogueScreen() {
   const [viewing, setViewing] = useState<CataloguePhoto | null>(null);
   const [choosing, setChoosing] = useState(false);
   const [adding, setAdding] = useState<File[] | null>(null);
+  const [activeItem, setActiveItem] = useState<string | null>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const libraryInputRef = useRef<HTMLInputElement>(null);
 
@@ -78,6 +79,9 @@ export default function CatalogueScreen() {
 
   const total = photos?.length ?? 0;
   const isEmpty = photos !== null && total === 0;
+  const activeGroup = activeItem
+    ? groups?.find((g) => g.name === activeItem) ?? null
+    : null;
 
   return (
     <div className="px-5 pb-24 pt-6 md:px-8 lg:px-12">
@@ -148,29 +152,85 @@ export default function CatalogueScreen() {
             is read automatically.
           </span>
         </button>
-      ) : (
-        <div className="mt-6 flex flex-col gap-8">
-          {groups.map((group) => (
-            <section key={group.name}>
-              <div className="flex items-baseline justify-between gap-3">
-                <h3
-                  className="mono text-[0.62rem] uppercase tracking-[0.16em] text-muted"
-                  data-no-vitality
-                >
-                  {group.name}
-                </h3>
-                <span className="mono text-[0.6rem] uppercase tracking-[0.1em] text-muted">
-                  {group.photos.length}
-                </span>
-              </div>
-              <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
-                {group.photos.map((p) => (
-                  <Tile key={p.id} photo={p} onOpen={() => setViewing(p)} />
-                ))}
-              </div>
-            </section>
-          ))}
+      ) : activeGroup ? (
+        /* drill-in: one item's photos, D.No. newest-first */
+        <div className="mt-4">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setActiveItem(null)}
+              data-no-vitality
+              className="flex items-center gap-1 rounded-full border px-3 py-1.5 text-[0.78rem] font-medium transition-colors"
+              style={{
+                color: "var(--accent)",
+                borderColor: "var(--accent)",
+                background: "transparent",
+              }}
+            >
+              <ChevronLeft size={14} aria-hidden />
+              Items
+            </button>
+            <h3
+              className="min-w-0 flex-1 truncate serif-italic text-xl"
+              data-no-vitality
+            >
+              {activeGroup.name}
+            </h3>
+          </div>
+          <p className="mono mt-1 text-[0.62rem] uppercase tracking-[0.16em] text-muted">
+            {activeGroup.photos.length} design{activeGroup.photos.length === 1 ? "" : "s"}
+          </p>
+          <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
+            {activeGroup.photos.map((p) => (
+              <Tile key={p.id} photo={p} onOpen={() => setViewing(p)} />
+            ))}
+          </div>
         </div>
+      ) : (
+        /* folder list — items sorted by name, each opening its designs */
+        <ul className="mt-4 flex flex-col gap-2">
+          {groups.map((group) => (
+            <li key={group.name}>
+              <button
+                type="button"
+                onClick={() => setActiveItem(group.name)}
+                data-no-vitality
+                className="flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left transition-colors"
+                style={{
+                  borderColor: "var(--color-border)",
+                  background: "var(--color-bg-elevated)",
+                }}
+              >
+                <span
+                  className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg"
+                  style={{ background: "var(--color-card-elevated)" }}
+                >
+                  {group.photos[0]?.imageUrl ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img
+                      src={group.photos[0].imageUrl}
+                      alt=""
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <Folder size={16} aria-hidden style={{ color: "var(--accent)" }} />
+                  )}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-medium text-fg">
+                    {group.name}
+                  </span>
+                  <span className="mono text-[0.62rem] uppercase tracking-[0.12em] text-muted">
+                    {group.photos.length} design{group.photos.length === 1 ? "" : "s"}
+                  </span>
+                </span>
+                <span className="shrink-0" style={{ color: "var(--color-muted)" }}>
+                  <ChevronRight size={16} aria-hidden />
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
       )}
 
       {choosing && (

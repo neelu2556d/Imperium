@@ -11,10 +11,12 @@ import {
 } from "@/components/business/orders/orderFormat";
 import {
   createPayment,
+  markOrderPaid,
   type CollectionRow,
   type PartyLedger,
   type PaymentStatus,
 } from "@/lib/supabase/orders";
+import { pushToast } from "@/lib/toast";
 
 type Filter = "all" | "overdue" | "due_week" | "pending" | "paid";
 
@@ -78,6 +80,21 @@ export default function CollectionsScreen() {
   const [filter, setFilter] = useState<Filter>("all");
   const [openPayment, setOpenPayment] = useState<CollectionRow | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [markingId, setMarkingId] = useState<string | null>(null);
+
+  const handleMarkPaid = async (id: string) => {
+    if (markingId) return;
+    setMarkingId(id);
+    try {
+      await markOrderPaid(id);
+      pushToast("Marked as paid.");
+      setRefreshKey((k) => k + 1);
+    } catch {
+      pushToast("Couldn't mark as paid. Try again.");
+    } finally {
+      setMarkingId(null);
+    }
+  };
 
   // Load collections and party ledgers
   useEffect(() => {
@@ -225,7 +242,9 @@ export default function CollectionsScreen() {
             <CollectionRowCard
               key={order.id}
               order={order}
+              marking={markingId === order.id}
               onLogPayment={() => setOpenPayment(order)}
+              onMarkPaid={() => handleMarkPaid(order.id)}
             />
           ))}
         </ul>
@@ -317,10 +336,14 @@ function SummaryCard({ label, value, color }: { label: string; value: string; co
 
 function CollectionRowCard({
   order,
+  marking,
   onLogPayment,
+  onMarkPaid,
 }: {
   order: CollectionRow;
+  marking: boolean;
   onLogPayment: () => void;
+  onMarkPaid: () => void;
 }) {
   const daysInfo = daysRemainingInfo(order.dueDate);
   const isOverdue = order.status === "overdue";
@@ -379,14 +402,25 @@ function CollectionRowCard({
         {daysInfo.text}
       </div>
 
-      {/* Log payment button */}
-      <button
-        type="button"
-        onClick={onLogPayment}
-        className="mt-3 w-full rounded-lg border border-border py-2 text-[0.72rem] uppercase tracking-[0.12em] font-medium text-muted transition-colors hover:border-mint hover:text-muted-strong"
-      >
-        Log Payment
-      </button>
+      {/* actions: mark fully paid, or log a partial payment */}
+      <div className="mt-3 flex gap-2">
+        <button
+          type="button"
+          onClick={onMarkPaid}
+          disabled={marking}
+          className="flex-1 rounded-lg border-0 py-2 text-[0.72rem] uppercase tracking-[0.12em] font-semibold transition-opacity disabled:opacity-50"
+          style={{ background: "var(--accent)", color: "var(--accent-ink)" }}
+        >
+          {marking ? "Paying…" : "Paid"}
+        </button>
+        <button
+          type="button"
+          onClick={onLogPayment}
+          className="flex-1 rounded-lg border border-border py-2 text-[0.72rem] uppercase tracking-[0.12em] font-medium text-muted transition-colors hover:border-mint hover:text-muted-strong"
+        >
+          Log Payment
+        </button>
+      </div>
     </li>
   );
 }

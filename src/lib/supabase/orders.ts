@@ -101,6 +101,7 @@ export interface PartyEntry {
   area: string | null;
   city: string | null;
   defaultPaymentDays: number;
+  defaultDiscountPercent: number;
   cdPercent: number;
   gstPreference: "gst" | "non_gst";
 }
@@ -365,7 +366,7 @@ export async function fetchParties(): Promise<PartyEntry[]> {
     const { data, error } = await supabase
       .from("party_master")
       .select(
-        "id, party_name, area, city, default_payment_days, cd_percent, gst_preference"
+        "id, party_name, area, city, default_payment_days, cd_percent, gst_preference, default_discount_percent"
       )
       .eq("user_id", userId)
       .order("party_name", { ascending: true });
@@ -376,6 +377,7 @@ export async function fetchParties(): Promise<PartyEntry[]> {
       area: (r.area as string | null) ?? null,
       city: (r.city as string | null) ?? null,
       defaultPaymentDays: num(r.default_payment_days),
+      defaultDiscountPercent: num(r.default_discount_percent),
       cdPercent: num(r.cd_percent),
       gstPreference:
         r.gst_preference === "gst" ? "gst" : "non_gst",
@@ -479,7 +481,7 @@ export async function createParty(input: NewPartyInput): Promise<PartyEntry> {
       city: input.city?.trim() || null,
     })
     .select(
-      "id, party_name, area, city, default_payment_days, cd_percent, gst_preference"
+      "id, party_name, area, city, default_payment_days, cd_percent, gst_preference, default_discount_percent"
     )
     .single();
 
@@ -490,6 +492,7 @@ export async function createParty(input: NewPartyInput): Promise<PartyEntry> {
       area: (data.area as string | null) ?? null,
       city: (data.city as string | null) ?? null,
       defaultPaymentDays: num(data.default_payment_days),
+      defaultDiscountPercent: num(data.default_discount_percent),
       cdPercent: num(data.cd_percent),
       gstPreference: data.gst_preference === "gst" ? "gst" : "non_gst",
     };
@@ -498,7 +501,7 @@ export async function createParty(input: NewPartyInput): Promise<PartyEntry> {
   const { data: existing } = await supabase
     .from("party_master")
     .select(
-      "id, party_name, area, city, default_payment_days, cd_percent, gst_preference"
+      "id, party_name, area, city, default_payment_days, cd_percent, gst_preference, default_discount_percent"
     )
     .eq("user_id", userId)
     .eq("party_name", partyName)
@@ -510,6 +513,7 @@ export async function createParty(input: NewPartyInput): Promise<PartyEntry> {
       area: (existing.area as string | null) ?? null,
       city: (existing.city as string | null) ?? null,
       defaultPaymentDays: num(existing.default_payment_days),
+      defaultDiscountPercent: num(existing.default_discount_percent),
       cdPercent: num(existing.cd_percent),
       gstPreference: existing.gst_preference === "gst" ? "gst" : "non_gst",
     };
@@ -691,6 +695,35 @@ export interface LogPaymentResult {
   paymentId: string;
   newStatus: "paid" | "partial" | "pending";
   amountReceived: number;
+}
+
+/**
+ * One-tap "Paid" for the Collections screen: settles an order in full without
+ * opening the payment form — sets amount_received to the net payable and flips
+ * payment_status to 'paid' (idempotent if already paid). Does not write a
+ * `payments` row; the collections list reads payment_status/amount_received off
+ * the order itself. Throws on failure so the caller can surface the error.
+ */
+export async function markOrderPaid(orderId: string): Promise<void> {
+  const userId = await ensureAnonymousSession();
+  const { data, error } = await supabase
+    .from("orders")
+    .select("net_payable")
+    .eq("user_id", userId)
+    .eq("id", orderId)
+    .maybeSingle();
+  if (error || !data) throw error ?? new Error("Order not found");
+
+  const { error: updateError } = await supabase
+    .from("orders")
+    .update({
+      amount_received: num(data.net_payable),
+      payment_status: "paid",
+      updated_at: new Date().toISOString(),
+    })
+    .eq("user_id", userId)
+    .eq("id", orderId);
+  if (updateError) throw updateError;
 }
 
 // ---------------------------------------------------------------------------

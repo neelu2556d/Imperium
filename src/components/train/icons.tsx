@@ -36,6 +36,7 @@ export function RefreshIcon(props: IconProps) {
   );
 }
 
+/** Settings gear — the gear icon on /home. */
 export function GearIcon(props: IconProps) {
   return (
     <svg {...base(props)}>
@@ -66,6 +67,19 @@ export function TrashIcon(props: IconProps) {
   );
 }
 
+/** Edit icon — the "edit this logged session" affordance. */
+export function EditIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M17.9 10.7 16.3 9.1" />
+      <path d="M17.9 14.3 16.3 15.9" />
+      <path d="M17.9 7.7 16.3 6.1" />
+      <path d="M0 4h2.8a2.1 2.1 0 0 0-.6-4.1L5.6 2 4 4h.3a1 1 0 0 1 .7 1c0 3.5 2.3 6.4 5.4 6.4a1 1 0 0 1 1 1v.3zM4 9.8a1 1 0 0 1 1 1H8a1 1 0 0 1 1 1v.3c0 .6-.4 1-1 1H6a1 1 0 0 1-1-1v-.3z"/>
+    </svg>
+  );
+}
+
+/** Plus icon — the "add new exercise" affordance. */
 export function PlusIcon(props: IconProps) {
   return (
     <svg {...base(props)}>

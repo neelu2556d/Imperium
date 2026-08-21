@@ -299,6 +299,33 @@ export interface SessionHistoryEntry {
 }
 
 /**
+ * Edits a logged session by updating a single set's exercise, reps, and/or weight.
+ * This is used when the user wants to correct their logged data.
+ * Takes: exercise_id, weight, reps, and the log_date/set_number of the set to edit
+ * Returns the updated session entry on success, null on failure.
+ */
+export async function editSession(date: string): Promise<SessionHistoryEntry | null> {
+  // Note: This is a placeholder implementation that would need a UI for selecting
+  // which set to edit and what values to change. For now, this returns null.
+  // A full implementation would require:
+  // 1. An EditSessionSheet component to pick the set and new values
+  // 2. Updating the corresponding row in set_logs table
+  // 3. Returning the updated session for UI refresh
+  reportQueryError("Edit session is not fully implemented yet.");
+  return null;
+}
+
+/** One past training session (all sets sharing a log_date), newest first. */
+export interface SessionHistoryEntry {
+  /** Local YYYY-MM-DD of the session. */
+  date: string;
+  dayName: string | null;
+  totalSets: number;
+  topLift: TopLift | null;
+  exercises: HistoryExercise[];
+}
+
+/**
  * Maps each exercise id to the split day it belongs to, via day_exercises →
  * training_split. Decorative (drives the per-session day label only), so it
  * swallows its own errors and returns whatever it resolved — a failed embed

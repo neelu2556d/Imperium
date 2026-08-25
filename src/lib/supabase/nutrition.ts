@@ -1,4 +1,10 @@
 import { ensureAnonymousSession, supabase } from "@/lib/supabase/client";
+import {
+  FoodEntry,
+  fetchNutritionByName,
+  fetchIndianFoods,
+  fetchFoodById,
+} from "@/lib/supabase/foodLibrary";
 
 export interface NutritionGoals {
   calories: number;

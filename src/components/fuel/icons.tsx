@@ -63,3 +63,12 @@ export function EditPlusIcon(props: IconProps) {
     </svg>
   );
 }
+
+/** Close (X) icon — used to close modals and sheets. */
+export function XMarkIcon(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M18 6L6 18M6 6l12 12" />
+    </svg>
+  );
+}

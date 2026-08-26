@@ -6,7 +6,7 @@ import { FoodEntry } from "@/lib/supabase/foodLibrary";
 import { XMarkIcon } from "@/components/fuel/icons";
 
 interface MealScannerProps {
-  mealType: string;
+  mealType: "breakfast" | "lunch" | "dinner" | "snacks";
   onLogComplete: () => void;
   onCancel: () => void;
 }

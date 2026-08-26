@@ -1,10 +1,4 @@
 import { ensureAnonymousSession, supabase } from "@/lib/supabase/client";
-import {
-  FoodEntry,
-  fetchNutritionByName,
-  fetchIndianFoods,
-  fetchFoodById,
-} from "@/lib/supabase/foodLibrary";
 
 export interface NutritionGoals {
   calories: number;
@@ -99,7 +93,7 @@ export async function saveNutritionGoals(goals: NutritionGoals): Promise<void> {
  * below mirror the food_logs columns.
  */
 
-export type FoodSource = "manual" | "screenshot_import";
+export type FoodSource = "manual" | "screenshot_import" | "barcode" | "meal_scan";
 
 /** Which meal a logged item belongs to. Rows default to "snacks". */
 export type MealType = "breakfast" | "lunch" | "dinner" | "snacks";

@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useRouter } from "next/navigation";
 import {
   fetchNutritionByName,
   type FoodEntry,
-} from "@/lib/supabase/nutrition";
+} from "@/lib/supabase/foodLibrary";
 
 interface FoodLibraryProps {
   onSelect: (food: FoodEntry) => void;
@@ -22,7 +22,7 @@ export default function FoodLibrary({
   const [activeMeal, setActiveMeal] = useState(initialMeal);
   const [results, setResults] = useState<FoodEntry[]>([]);
   const [selected, setSelected] = useState<FoodEntry | null>(null);
-  const navigate = useNavigate();
+  const router = useRouter();
 
   const filtered = useMemo(() => {
     if (!search.trim()) return [];
@@ -55,7 +55,7 @@ export default function FoodLibrary({
           <p className="text-muted text-sm">Search 22M+ items database</p>
           <button
             className="close-btn"
-            onClick={() => navigate(-1)}
+            onClick={() => router.back()}
             aria-label="Close food library"
           >
             ← Back
@@ -153,7 +153,7 @@ export default function FoodLibrary({
               className="btn-primary w-full mt-3 py-2"
               onClick={() => {
                 handleSelect(selected);
-                navigate(-1);
+                router.push("/fuel");
               }}
             >
               Add to {activeMeal}

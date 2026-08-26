@@ -5,7 +5,7 @@ import { addFoodLogs } from "@/lib/supabase/nutrition";
 import { FoodEntry } from "@/lib/supabase/foodLibrary";
 
 interface BarcodeScannerProps {
-  mealType: string; // MealType from nutrition.ts
+  mealType: "breakfast" | "lunch" | "dinner" | "snacks";
   onScanComplete: () => void;
   onCancel: () => void;
 }
@@ -111,7 +111,7 @@ export default function BarcodeScanner({
             carbs: scannedFood.carbs_g,
           },
         ],
-        "barcode",
+        "manual",
         mealType
       );
       onScanComplete();

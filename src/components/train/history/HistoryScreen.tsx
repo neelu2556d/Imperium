@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { BackIcon } from "@/components/train/icons";
+import { BackIcon } from "@/components/train/session/icons";
 import { TrashIcon, EditIcon } from "@/components/train/icons";
 
 import {

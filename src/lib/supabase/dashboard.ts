@@ -92,14 +92,14 @@ export async function fetchFuelSparkline(): Promise<number[]> {
     const userId = await ensureAnonymousSession();
     const { data, error } = await supabase
       .from("food_logs")
-      .select("calories, log_date")
+      .select("calories, logged_date")
       .eq("user_id", userId)
-      .order("log_date", { ascending: true });
+      .order("logged_date", { ascending: true });
     if (error) throw error;
 
     const byDate = new Map<string, number>();
     for (const row of data ?? []) {
-      const key = String(row.log_date);
+      const key = String(row.logged_date);
       byDate.set(key, (byDate.get(key) ?? 0) + (Number(row.calories) || 0));
     }
     const series = [...byDate.keys()].sort().map((k) => byDate.get(k)!);
@@ -184,18 +184,18 @@ export async function fetchFuelToday(): Promise<FuelData> {
     const userId = await ensureAnonymousSession();
     const { data, error } = await supabase
       .from("food_logs")
-      .select("calories, protein, carbs, fat")
+      .select("calories, protein_g, carbs_g, fat_g")
       .eq("user_id", userId)
-      .eq("log_date", localISODate(new Date()));
+      .eq("logged_date", localISODate(new Date()));
     if (error) throw error;
     if (!data || data.length === 0) return empty;
 
     const totals = data.reduce(
       (acc, r) => ({
         calories: acc.calories + (Number(r.calories) || 0),
-        protein: acc.protein + (Number(r.protein) || 0),
-        carbs: acc.carbs + (Number(r.carbs) || 0),
-        fat: acc.fat + (Number(r.fat) || 0),
+        protein: acc.protein + (Number(r.protein_g) || 0),
+        carbs: acc.carbs + (Number(r.carbs_g) || 0),
+        fat: acc.fat + (Number(r.fat_g) || 0),
       }),
       { calories: 0, protein: 0, carbs: 0, fat: 0 }
     );

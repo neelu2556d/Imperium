@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Stray, incomplete scaffold committed alongside the repo — not part of the
+    // Next.js app (the real source lives in ./src). Excluded from lint/types.
+    "Imperium/**",
   ]),
 ]);
 

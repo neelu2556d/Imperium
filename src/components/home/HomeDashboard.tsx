@@ -2,7 +2,6 @@
 
 import {
   useEffect,
-  useMemo,
   useRef,
   useState,
   memo,
@@ -18,6 +17,7 @@ import { useReducedMotion } from "@/lib/motion";
 import { useOwner } from "@/lib/useOwner";
 import { formatTime, formatToday, getGreeting } from "@/lib/home/datetime";
 import {
+  fetchFuelToday,
   fetchTodayTrainingDay,
   fetchTrainSparkline,
   getDisplayName,
@@ -30,6 +30,7 @@ export default function HomeDashboard() {
   const [name, setName] = useState<string | null>(null);
   const [today, setToday] = useState<TodayTrainingDay | null>(null);
   const [volumes, setVolumes] = useState<number[]>([]);
+  const [fuelKcal, setFuelKcal] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -37,11 +38,13 @@ export default function HomeDashboard() {
       getDisplayName(),
       fetchTodayTrainingDay(),
       fetchTrainSparkline(),
-    ]).then(([name, today, volumes]) => {
+      fetchFuelToday(),
+    ]).then(([name, today, volumes, fuel]) => {
       if (cancelled) return;
       setName(name);
       setToday(today);
       setVolumes(volumes);
+      setFuelKcal(fuel.calories);
     });
     return () => {
       cancelled = true;
@@ -139,6 +142,7 @@ export default function HomeDashboard() {
           label="Fuel"
           ariaLabel="Open Fuel"
           icon={<Droplets size={16} />}
+          sub={`${Math.round(fuelKcal).toLocaleString()} KCAL`}
         >
           <FuelChart />
         </Card>

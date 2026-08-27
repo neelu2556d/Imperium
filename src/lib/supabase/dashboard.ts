@@ -59,28 +59,21 @@ export async function fetchTodayTrainingDay(): Promise<TodayTrainingDay | null> 
 }
 
 /**
- * Total volume (Σ weight·reps) for each of the last 7 training sessions, oldest
- * → newest, so it can be drawn straight into a sparkline. Empty array = no data.
+ * Total volume of each of the last 7 finished workout sessions, oldest →
+ * newest, for the Train card sparkline. Reads the Strong-style
+ * `workout_sessions` (migration 0026); empty array = no data.
  */
 export async function fetchTrainSparkline(): Promise<number[]> {
   try {
     const userId = await ensureAnonymousSession();
     const { data, error } = await supabase
-      .from("set_logs")
-      .select("weight, reps, log_date")
+      .from("workout_sessions")
+      .select("total_volume_kg, started_at")
       .eq("user_id", userId)
-      .order("log_date", { ascending: true });
+      .eq("is_active", false)
+      .order("started_at", { ascending: true });
     if (error) throw error;
-
-    const byDate = new Map<string, number>();
-    for (const row of data ?? []) {
-      const weight = Number(row.weight) || 0;
-      const reps = Number(row.reps) || 0;
-      const key = String(row.log_date);
-      byDate.set(key, (byDate.get(key) ?? 0) + weight * reps);
-    }
-    const volumes = [...byDate.keys()].sort().map((k) => byDate.get(k)!);
-    return volumes.slice(-7);
+    return (data ?? []).map((r) => Number(r.total_volume_kg) || 0).slice(-7);
   } catch {
     return [];
   }

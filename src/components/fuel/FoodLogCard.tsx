@@ -1,16 +1,14 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import {
-  addFoodLogs,
-  type MealType,
-} from "@/lib/supabase/nutrition";
-import { FoodEntry } from "@/lib/supabase/foodLibrary";
+import { insertFoodLogs } from "@/lib/supabase/nutrition";
+import type { MealType } from "@/lib/supabase/nutrition";
+import type { FoodSearchResult } from "@/lib/fuel/food";
 
 type QuantityUnit = "g" | "ml" | "pieces" | "tbsp";
 
 interface FoodLogCardProps {
-  food: FoodEntry;
+  food: FoodSearchResult;
   mealType: MealType;
   onLog: () => void;
   onCancel: () => void;
@@ -52,10 +50,10 @@ export default function FoodLogCard({
     const factor = (qty * UNIT_TO_G[unit]) / 100;
 
     return {
-      calories: Math.round(food.calories * factor),
-      protein: Math.round(food.protein_g * factor * 10) / 10,
-      carbs: Math.round(food.carbs_g * factor * 10) / 10,
-      fat: Math.round(food.fat_g * factor * 10) / 10,
+      calories: Math.round(food.per100g.calories * factor),
+      protein_g: Math.round(food.per100g.protein_g * factor * 10) / 10,
+      carbs_g: Math.round(food.per100g.carbs_g * factor * 10) / 10,
+      fat_g: Math.round(food.per100g.fat_g * factor * 10) / 10,
     };
   }, [quantity, unit, food]);
 
@@ -75,19 +73,24 @@ export default function FoodLogCard({
     setError(null);
 
     try {
-      await addFoodLogs(
-        [
-          {
-            item_name: food.name,
-            calories: calculatedNutrition.calories,
-            protein: calculatedNutrition.protein,
-            fat: calculatedNutrition.fat,
-            carbs: calculatedNutrition.carbs,
-          },
-        ],
-        "manual",
-        mealType
-      );
+      const today = new Date().toISOString().split("T")[0];
+      await insertFoodLogs([
+        {
+          logged_date: today,
+          meal_type: mealType,
+          food_source: "manual",
+          food_name: food.name,
+          brand: food.brand,
+          serving_amount: 1,
+          serving_unit: "g",
+          serving_g: 100,
+          calories: calculatedNutrition.calories,
+          protein_g: calculatedNutrition.protein_g,
+          fat_g: calculatedNutrition.fat_g,
+          carbs_g: calculatedNutrition.carbs_g,
+          fiber_g: 0,
+        },
+      ]);
       onLog();
     } catch (err) {
       setError("Couldn't log food. Try again.");
@@ -187,7 +190,7 @@ export default function FoodLogCard({
               Protein
             </p>
             <p className="mono text-lg font-semibold" style={{ color: "var(--color-mint)" }}>
-              {calculatedNutrition.protein}
+              {calculatedNutrition.protein_g}
             </p>
             <p className="text-[0.6rem] text-muted">g</p>
           </div>
@@ -196,7 +199,7 @@ export default function FoodLogCard({
               Carbs
             </p>
             <p className="mono text-lg font-semibold" style={{ color: "var(--color-amber)" }}>
-              {calculatedNutrition.carbs}
+              {calculatedNutrition.carbs_g}
             </p>
             <p className="text-[0.6rem] text-muted">g</p>
           </div>
@@ -205,7 +208,7 @@ export default function FoodLogCard({
               Fat
             </p>
             <p className="mono text-lg font-semibold" style={{ color: "rgba(255,255,255,0.7)" }}>
-              {calculatedNutrition.fat}
+              {calculatedNutrition.fat_g}
             </p>
             <p className="text-[0.6rem] text-muted">g</p>
           </div>

@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { addFoodLogs } from "@/lib/supabase/nutrition";
-import { FoodEntry } from "@/lib/supabase/foodLibrary";
+import { insertFoodLogs } from "@/lib/supabase/nutrition";
+import type { FoodSearchResult } from "@/lib/fuel/food";
 
 interface BarcodeScannerProps {
   mealType: "breakfast" | "lunch" | "dinner" | "snacks";
@@ -22,51 +22,55 @@ export default function BarcodeScanner({
 }: BarcodeScannerProps) {
   const [isScanning, setIsScanning] = useState(true);
   const [scannedCode, setScannedCode] = useState<string | null>(null);
-  const [scannedFood, setScannedFood] = useState<FoodEntry | null>(null);
+  const [scannedFood, setScannedFood] = useState<FoodSearchResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Sample barcodes for testing (common Indian foods)
-  const SAMPLE_BARCODES: Record<string, FoodEntry> = {
+  const SAMPLE_BARCODES: Record<string, FoodSearchResult> = {
     "8901030061011": {
       id: "sample:1",
       name: "Amul Milk",
       brand: "Amul",
+      food_group: "Dairy",
       source: "sample",
-      calories: 62,
-      protein_g: 3.2,
-      fat_g: 3.3,
-      carbs_g: 4.8,
+      badge: "Sample",
+      badgeColor: "text-muted",
+      canEdit: false,
+      per100g: { calories: 62, protein_g: 3.2, fat_g: 3.3, carbs_g: 4.8, fiber_g: 0 },
     },
     "8901030061028": {
       id: "sample:2",
       name: "Amul Butter",
       brand: "Amul",
+      food_group: "Dairy",
       source: "sample",
-      calories: 720,
-      protein_g: 0.9,
-      fat_g: 81.0,
-      carbs_g: 0.1,
+      badge: "Sample",
+      badgeColor: "text-muted",
+      canEdit: false,
+      per100g: { calories: 720, protein_g: 0.9, fat_g: 81.0, carbs_g: 0.1, fiber_g: 0 },
     },
     "8901123456789": {
       id: "sample:3",
       name: "Tata Salt",
       brand: "Tata",
+      food_group: "Condiments",
       source: "sample",
-      calories: 0,
-      protein_g: 0,
-      fat_g: 0,
-      carbs_g: 0,
+      badge: "Sample",
+      badgeColor: "text-muted",
+      canEdit: false,
+      per100g: { calories: 0, protein_g: 0, fat_g: 0, carbs_g: 0, fiber_g: 0 },
     },
     "8901234567890": {
       id: "sample:4",
       name: "Maggi Noodles",
       brand: "Maggi",
+      food_group: "Packaged",
       source: "sample",
-      calories: 345,
-      protein_g: 8.1,
-      fat_g: 14.5,
-      carbs_g: 44.9,
+      badge: "Sample",
+      badgeColor: "text-muted",
+      canEdit: false,
+      per100g: { calories: 345, protein_g: 8.1, fat_g: 14.5, carbs_g: 44.9, fiber_g: 2.1 },
     },
   };
 
@@ -101,19 +105,25 @@ export default function BarcodeScanner({
 
     try {
       // Log the scanned food
-      await addFoodLogs(
-        [
-          {
-            item_name: scannedFood.name,
-            calories: scannedFood.calories,
-            protein: scannedFood.protein_g,
-            fat: scannedFood.fat_g,
-            carbs: scannedFood.carbs_g,
-          },
-        ],
-        "manual",
-        mealType
-      );
+      const g = 100; // default serving
+      await insertFoodLogs([
+        {
+          logged_date: new Date().toISOString().split("T")[0],
+          meal_type: mealType,
+          food_source: "barcode",
+          food_ref_id: scannedFood.id,
+          food_name: scannedFood.name,
+          brand: scannedFood.brand,
+          serving_amount: 1,
+          serving_unit: "100g",
+          serving_g: g,
+          calories: Math.round(scannedFood.per100g.calories),
+          protein_g: Math.round(scannedFood.per100g.protein_g * 10) / 10,
+          fat_g: Math.round(scannedFood.per100g.fat_g * 10) / 10,
+          carbs_g: Math.round(scannedFood.per100g.carbs_g * 10) / 10,
+          fiber_g: Math.round(scannedFood.per100g.fiber_g * 10) / 10,
+        },
+      ]);
       onScanComplete();
     } catch (err) {
       setError("Couldn't log scanned food. Try again.");

@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { addFoodLogs } from "@/lib/supabase/nutrition";
-import { MealType } from "@/lib/supabase/nutrition";
+import { insertFoodLogs, type MealType } from "@/lib/supabase/nutrition";
 
 interface QuickAddProps {
   onLogged: () => void;
@@ -22,14 +21,21 @@ export default function QuickAdd({ onLogged }: QuickAddProps) {
   const handleSubmit = async () => {
     if (!name.trim()) return;
     const entry = {
-      item_name: name.trim(),
+      logged_date: new Date().toISOString().split("T")[0],
+      meal_type: mealType,
+      food_source: "quick_add",
+      food_name: name.trim(),
+      serving_amount: quantity,
+      serving_unit: "g",
+      serving_g: quantity * 10,
       calories: parseInt(calories, 10) || 0,
-      protein: parseInt(protein, 10) || 0,
-      fat: parseInt(fat, 10) || 0,
-      carbs: parseInt(carbs, 10) || 0,
+      protein_g: parseInt(protein, 10) || 0,
+      fat_g: parseInt(fat, 10) || 0,
+      carbs_g: parseInt(carbs, 10) || 0,
+      fiber_g: 0,
     };
     try {
-      await addFoodLogs([entry], "manual", mealType);
+      await insertFoodLogs([entry]);
       setSaving(false);
       setName("");
       setQuantity(1);

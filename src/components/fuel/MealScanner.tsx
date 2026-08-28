@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { addFoodLogs } from "@/lib/supabase/nutrition";
-import { FoodEntry } from "@/lib/supabase/foodLibrary";
+import { insertFoodLogs } from "@/lib/supabase/nutrition";
+import type { FoodSearchResult } from "@/lib/fuel/food";
 import { XMarkIcon } from "@/components/fuel/icons";
 
 interface MealScannerProps {
@@ -23,112 +23,122 @@ export default function MealScanner({
 }: MealScannerProps) {
   const [step, setStep] = useState<"scanning" | "review" | "success">("scanning");
   const [scanning, setScanninging] = useState(false);
-  const [detectedItems, setDetectedItems] = useState<FoodEntry[]>([]);
+  const [detectedItems, setDetectedItems] = useState<FoodSearchResult[]>([]);
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
   const [quantityMap, setQuantityMap] = useState<Record<string, number>>({});
 
   // Common Indian meal items with estimated nutrition per 100g
-  const INDIAN_MEAL_ITEMS: FoodEntry[] = [
+  const INDIAN_MEAL_ITEMS: FoodSearchResult[] = [
     {
       id: "meal:roti",
       name: "Roti (Whole Wheat)",
       brand: "Indian Meal",
+      food_group: "Grains",
       source: "meal_scan",
-      calories: 297,
-      protein_g: 10.8,
-      fat_g: 1.5,
-      carbs_g: 56.3,
+      badge: "Meal Scan",
+      badgeColor: "text-mint",
+      canEdit: false,
+      per100g: { calories: 297, protein_g: 10.8, fat_g: 1.5, carbs_g: 56.3, fiber_g: 3.1 },
     },
     {
       id: "meal:rice",
       name: "Steamed Rice",
       brand: "Indian Meal",
+      food_group: "Grains",
       source: "meal_scan",
-      calories: 130,
-      protein_g: 2.7,
-      fat_g: 0.3,
-      carbs_g: 28.0,
+      badge: "Meal Scan",
+      badgeColor: "text-mint",
+      canEdit: false,
+      per100g: { calories: 130, protein_g: 2.7, fat_g: 0.3, carbs_g: 28.0, fiber_g: 0.4 },
     },
     {
       id: "meal:dal",
       name: "Dal (Lentil Curry)",
       brand: "Indian Meal",
+      food_group: "Legumes",
       source: "meal_scan",
-      calories: 140,
-      protein_g: 8.0,
-      fat_g: 4.5,
-      carbs_g: 20.0,
+      badge: "Meal Scan",
+      badgeColor: "text-mint",
+      canEdit: false,
+      per100g: { calories: 140, protein_g: 8.0, fat_g: 4.5, carbs_g: 20.0, fiber_g: 4.4 },
     },
     {
       id: "meal:chicken",
       name: "Chicken Curry",
       brand: "Indian Meal",
+      food_group: "Meat",
       source: "meal_scan",
-      calories: 170,
-      protein_g: 15.0,
-      fat_g: 10.0,
-      carbs_g: 5.0,
+      badge: "Meal Scan",
+      badgeColor: "text-mint",
+      canEdit: false,
+      per100g: { calories: 170, protein_g: 15.0, fat_g: 10.0, carbs_g: 5.0, fiber_g: 0.5 },
     },
     {
       id: "meal:veg",
       name: "Mixed Vegetables Sabzi",
       brand: "Indian Meal",
+      food_group: "Vegetables",
       source: "meal_scan",
-      calories: 120,
-      protein_g: 3.0,
-      fat_g: 5.0,
-      carbs_g: 12.0,
+      badge: "Meal Scan",
+      badgeColor: "text-mint",
+      canEdit: false,
+      per100g: { calories: 120, protein_g: 3.0, fat_g: 5.0, carbs_g: 12.0, fiber_g: 3.2 },
     },
     {
       id: "meal:naan",
       name: "Butter Naan",
       brand: "Indian Meal",
+      food_group: "Grains",
       source: "meal_scan",
-      calories: 265,
-      protein_g: 8.0,
-      fat_g: 8.0,
-      carbs_g: 42.0,
+      badge: "Meal Scan",
+      badgeColor: "text-mint",
+      canEdit: false,
+      per100g: { calories: 265, protein_g: 8.0, fat_g: 8.0, carbs_g: 42.0, fiber_g: 1.9 },
     },
     {
       id: "meal:chapati",
       name: "Chapati",
       brand: "Indian Meal",
+      food_group: "Grains",
       source: "meal_scan",
-      calories: 220,
-      protein_g: 6.0,
-      fat_g: 2.0,
-      carbs_g: 45.0,
+      badge: "Meal Scan",
+      badgeColor: "text-mint",
+      canEdit: false,
+      per100g: { calories: 220, protein_g: 6.0, fat_g: 2.0, carbs_g: 45.0, fiber_g: 3.1 },
     },
     {
       id: "meal:sambar",
       name: "Sambar",
       brand: "Indian Meal",
+      food_group: "Legumes",
       source: "meal_scan",
-      calories: 100,
-      protein_g: 4.0,
-      fat_g: 2.0,
-      carbs_g: 16.0,
+      badge: "Meal Scan",
+      badgeColor: "text-mint",
+      canEdit: false,
+      per100g: { calories: 100, protein_g: 4.0, fat_g: 2.0, carbs_g: 16.0, fiber_g: 3.1 },
     },
     {
       id: "meal:curd",
       name: "Curd / Yogurt",
       brand: "Indian Meal",
+      food_group: "Dairy",
       source: "meal_scan",
-      calories: 62,
-      protein_g: 3.5,
-      fat_g: 4.0,
-      carbs_g: 4.5,
+      badge: "Meal Scan",
+      badgeColor: "text-mint",
+      canEdit: false,
+      per100g: { calories: 62, protein_g: 3.5, fat_g: 4.0, carbs_g: 4.5, fiber_g: 0.0 },
     },
     {
       id: "meal:papad",
       name: "Papad (Roasted)",
       brand: "Indian Meal",
+      food_group: "Snacks",
       source: "meal_scan",
-      calories: 180,
-      protein_g: 8.0,
-      fat_g: 10.0,
-      carbs_g: 10.0,
+      badge: "Meal Scan",
+      badgeColor: "text-mint",
+      canEdit: false,
+      per100g: { calories: 180, protein_g: 8.0, fat_g: 10.0, carbs_g: 10.0, fiber_g: 1.9 },
     },
   ];
 
@@ -173,14 +183,15 @@ export default function MealScanner({
     setQuantityMap({ ...quantityMap, [id]: qty });
   };
 
-  const calculateNutrition = (item: FoodEntry) => {
+  const calculateNutrition = (item: FoodSearchResult) => {
     const qty = quantityMap[item.id] || 100;
     const factor = qty / 100;
     return {
-      calories: Math.round(item.calories * factor),
-      protein_g: Math.round(item.protein_g * factor * 10) / 10,
-      fat_g: Math.round(item.fat_g * factor * 10) / 10,
-      carbs_g: Math.round(item.carbs_g * factor * 10) / 10,
+      calories: Math.round(item.per100g.calories * factor),
+      protein_g: Math.round(item.per100g.protein_g * factor * 10) / 10,
+      fat_g: Math.round(item.per100g.fat_g * factor * 10) / 10,
+      carbs_g: Math.round(item.per100g.carbs_g * factor * 10) / 10,
+      fiber_g: Math.round(item.per100g.fiber_g * factor * 10) / 10,
     };
   };
 
@@ -195,19 +206,30 @@ export default function MealScanner({
       return;
     }
 
+    const today = new Date().toISOString().split("T")[0];
     const entries = selectedItemsList.map((item) => {
       const nutrition = calculateNutrition(item);
+      const qty = quantityMap[item.id] || 100;
       return {
-        item_name: item.name,
+        logged_date: today,
+        meal_type: mealType,
+        food_source: "meal_scan",
+        food_ref_id: item.id,
+        food_name: item.name,
+        brand: item.brand,
+        serving_amount: qty / 100,
+        serving_unit: "g",
+        serving_g: qty,
         calories: nutrition.calories,
-        protein: nutrition.protein_g,
-        fat: nutrition.fat_g,
-        carbs: nutrition.carbs_g,
+        protein_g: nutrition.protein_g,
+        fat_g: nutrition.fat_g,
+        carbs_g: nutrition.carbs_g,
+        fiber_g: nutrition.fiber_g,
       };
     });
 
     try {
-      await addFoodLogs(entries, "meal_scan", mealType);
+      await insertFoodLogs(entries);
       setStep("success");
       onLogComplete();
     } catch (err) {
@@ -222,12 +244,13 @@ export default function MealScanner({
         const n = calculateNutrition(item);
         return {
           calories: sum.calories + n.calories,
-          protein: sum.protein + n.protein_g,
-          fat: sum.fat + n.fat_g,
-          carbs: sum.carbs + n.carbs_g,
+          protein_g: sum.protein_g + n.protein_g,
+          fat_g: sum.fat_g + n.fat_g,
+          carbs_g: sum.carbs_g + n.carbs_g,
+          fiber_g: sum.fiber_g + n.fiber_g,
         };
       },
-      { calories: 0, protein: 0, fat: 0, carbs: 0 }
+      { calories: 0, protein_g: 0, fat_g: 0, carbs_g: 0, fiber_g: 0 }
     );
 
   if (step === "scanning") {
@@ -379,15 +402,15 @@ export default function MealScanner({
           </div>
           <div>
             <p className="text-[0.65rem] text-muted">Protein</p>
-            <p className="font-bold">{totals.protein.toFixed(1)}g</p>
+            <p className="font-bold">{totals.protein_g.toFixed(1)}g</p>
           </div>
           <div>
             <p className="text-[0.65rem] text-muted">Carbs</p>
-            <p className="font-bold">{totals.carbs.toFixed(1)}g</p>
+            <p className="font-bold">{totals.carbs_g.toFixed(1)}g</p>
           </div>
           <div>
             <p className="text-[0.65rem] text-muted">Fat</p>
-            <p className="font-bold">{totals.fat.toFixed(1)}g</p>
+            <p className="font-bold">{totals.fat_g.toFixed(1)}g</p>
           </div>
         </div>
 

@@ -1,5 +1,5 @@
-import TrainScreen from "@/components/train/strong/TrainScreen";
+import TrainLogger from "@/components/train/strong/TrainLogger";
 
 export default function TrainPage() {
-  return <TrainScreen />;
+  return <TrainLogger />;
 }
